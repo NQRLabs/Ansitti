@@ -1,0 +1,3017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!--
+    Ansitti - ANSI Art Generator
+    MIT License
+
+    Copyright (c) 2025 NQR
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+  -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Create ANSI art from images and text with layers, colors, and customizable character sets">
+  <title>Ansitti - ANSI Art Generator</title>
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Ansitti | NQR Labs">
+  <meta property="og:description" content="Create ANSI art from images and text with layers, colors, and customizable character sets">
+  <meta property="og:image" content="https://nqrlabs.com/Ansitti/assets/images/logo.png">
+  <meta property="og:url" content="https://nqrlabs.com/Ansitti/">
+  <meta property="og:type" content="website">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Ansitti | NQR Labs">
+  <meta name="twitter:description" content="Create ANSI art from images and text with layers, colors, and customizable character sets">
+  <meta name="twitter:image" content="https://nqrlabs.com/Ansitti/assets/images/logo.png">
+
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://nqrlabs.com/Ansitti/">
+
+  <!-- Favicons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/images/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/images/apple-touch-icon.png">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="assets/css/styles.css">
+
+  <style>
+    /* ANSI-specific styles */
+    #ansiPreview {
+      font-family: 'Courier New', monospace;
+      line-height: 1;
+      white-space: pre;
+      background: #000;
+      padding: 20px;
+      cursor: crosshair;
+      position: relative;
+      user-select: none;
+      width: 100%;
+      min-height: 100%;
+      box-sizing: border-box;
+    }
+
+    .ansi-char {
+      display: inline-block;
+      width: 1ch;
+      height: 1em;
+    }
+
+    .layer-item {
+      padding: 10px;
+      margin: 5px 0;
+      background: rgba(93, 225, 255, 0.1);
+      border: 1px solid rgba(93, 225, 255, 0.3);
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .layer-item.selected {
+      background: rgba(93, 225, 255, 0.3);
+      border-color: var(--color-primary);
+    }
+
+    .layer-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 140px;
+    }
+
+    .layer-controls-row {
+      display: flex;
+      gap: 3px;
+    }
+
+    .layer-controls button {
+      padding: 4px 6px;
+      font-size: 11px;
+      flex: 1;
+    }
+
+    /* Dropdown styling fix */
+    select {
+      background: var(--color-bg);
+      color: var(--color-text);
+      border: 1px solid rgba(93, 225, 255, 0.3);
+      padding: 8px;
+      border-radius: 4px;
+      font-family: inherit;
+      width: 100%;
+    }
+
+    select option {
+      background: var(--color-bg);
+      color: var(--color-text);
+      padding: 8px;
+    }
+
+    select:hover {
+      border-color: var(--color-primary);
+    }
+
+    select:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 2px rgba(93, 225, 255, 0.2);
+    }
+
+    .color-palette {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 4px;
+      margin-top: 8px;
+    }
+
+    .color-swatch {
+      width: 25px;
+      height: 25px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .color-swatch.transparent {
+      background: linear-gradient(45deg, #555 25%, transparent 25%, transparent 75%, #555 75%, #555),
+                  linear-gradient(45deg, #555 25%, #888 25%, #888 75%, #555 75%, #555);
+      background-size: 10px 10px;
+      background-position: 0 0, 5px 5px;
+    }
+
+    .color-swatch:hover {
+      border-color: var(--color-primary);
+      transform: scale(1.1);
+    }
+
+    .color-swatch.selected {
+      border-color: var(--color-secondary);
+      box-shadow: 0 0 10px var(--color-secondary);
+    }
+
+    .preview-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .preview-toolbar {
+      padding: 10px;
+      background: rgba(4, 7, 10, 0.9);
+      border-bottom: 1px solid rgba(93, 225, 255, 0.3);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .preview-content {
+      flex: 1;
+      overflow: auto;
+      background: #000;
+      position: relative;
+      min-height: 0;
+    }
+
+    #charModeGroup {
+      display: flex;
+      gap: 5px;
+    }
+
+    #charModeGroup button {
+      padding: 6px 12px;
+      background: rgba(93, 225, 255, 0.1);
+      border: 1px solid rgba(93, 225, 255, 0.3);
+    }
+
+    #charModeGroup button.active {
+      background: var(--color-primary);
+      color: #000;
+    }
+
+    .font-style-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .font-style-group label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+    }
+
+    .text-only-control {
+      display: none;
+    }
+
+    .text-only-control.active {
+      display: block;
+    }
+
+    .image-only-control {
+      display: none;
+    }
+
+    .image-only-control.active {
+      display: block;
+    }
+
+    .ansi-only-control {
+      display: none;
+    }
+
+    .ansi-only-control.active {
+      display: block;
+    }
+
+    .info-hint {
+      font-size: 0.85em;
+      color: var(--color-text-secondary);
+      margin-top: 4px;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container layout-split">
+    <!-- Control Panel -->
+    <div class="control-panel">
+      <header>
+        <img src="assets/images/logo.png" alt="Ansitti Logo" onerror="this.style.display='none'" class="logo">
+        <h1>Ansitti</h1>
+        <p class="subtitle">ANSI Art Generator</p>
+      </header>
+
+      <!-- Add Layer Section -->
+      <div class="section">
+        <div class="section-title">Add Layer</div>
+
+        <div class="button-group">
+          <button id="addImageBtn">+ Image</button>
+          <button id="addTextBtn">+ Text</button>
+          <button id="addAnsiBtn">+ ANSI</button>
+        </div>
+        <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+        <input type="file" id="ansiUpload" accept=".ans,.txt" style="display: none;">
+      </div>
+
+      <!-- Character Mode Section -->
+      <div class="section">
+        <div class="section-title">Character Mode</div>
+
+        <div id="charModeGroup">
+          <button id="blockModeBtn" class="active">Block</button>
+          <button id="asciiModeBtn">ASCII</button>
+          <button id="halfBlockModeBtn">Half-Block</button>
+        </div>
+
+        <div class="info-hint">Block mode uses shading characters (░▒▓█). ASCII mode uses standard characters (.:-+=*#%@). Half-Block mode uses ▀▄ for 2x vertical resolution.</div>
+      </div>
+
+      <!-- Layer Settings Section -->
+      <div class="section">
+        <div class="section-title">Layer Settings</div>
+
+        <div class="control-group">
+          <label class="control-label">Width (characters)</label>
+          <div class="range-container">
+            <input type="range" id="layerWidth" min="10" max="200" value="80">
+            <span class="range-value" id="layerWidthValue">80</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label">Height (characters)</label>
+          <div class="range-container">
+            <input type="range" id="layerHeight" min="10" max="100" value="40">
+            <span class="range-value" id="layerHeightValue">40</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label">Rotation (degrees)</label>
+          <div class="range-container">
+            <input type="range" id="layerRotation" min="0" max="360" value="0">
+            <span class="range-value" id="layerRotationValue">0</span>
+          </div>
+        </div>
+
+        <!-- ANSI Row Width Control (for ANSI files only) -->
+        <div class="control-group ansi-only-control" id="ansiRowWidthGroup">
+          <label class="control-label">ANSI Row Width</label>
+          <div class="range-container">
+            <input type="range" id="ansiRowWidth" min="20" max="200" value="80">
+            <span class="range-value" id="ansiRowWidthValue">80</span>
+          </div>
+          <div class="info-hint">Adjust if rows don't wrap correctly</div>
+        </div>
+
+        <!-- Image Adjustment Controls (for images only) -->
+        <div class="control-group image-only-control" id="imageAdjustmentsGroup">
+          <label class="control-label">Image Adjustments</label>
+
+          <label class="control-label" style="font-size: 0.9em; margin-top: 8px;">Hue Shift</label>
+          <div class="range-container">
+            <input type="range" id="imageHue" min="-180" max="180" value="0">
+            <span class="range-value" id="imageHueValue">0</span>
+          </div>
+
+          <label class="control-label" style="font-size: 0.9em; margin-top: 8px;">Saturation</label>
+          <div class="range-container">
+            <input type="range" id="imageSaturation" min="-100" max="100" value="0">
+            <span class="range-value" id="imageSaturationValue">0</span>
+          </div>
+
+          <label class="control-label" style="font-size: 0.9em; margin-top: 8px;">Contrast</label>
+          <div class="range-container">
+            <input type="range" id="imageContrast" min="-100" max="100" value="0">
+            <span class="range-value" id="imageContrastValue">0</span>
+          </div>
+
+          <label class="control-label" style="font-size: 0.9em; margin-top: 8px;">Brightness</label>
+          <div class="range-container">
+            <input type="range" id="imageBrightness" min="-100" max="100" value="0">
+            <span class="range-value" id="imageBrightnessValue">0</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <button id="resetLayerBtn" class="full-width-btn">Reset Layer Settings</button>
+        </div>
+
+        <!-- Text Layer Controls -->
+        <div class="control-group text-only-control" id="textContentGroup">
+          <label class="control-label">Text Content</label>
+          <textarea id="textContent" placeholder="Enter text for ANSI conversion..." rows="4"></textarea>
+        </div>
+
+        <div class="control-group text-only-control" id="fontFamilyGroup">
+          <label class="control-label">Font Family</label>
+          <select id="fontFamily">
+            <option value="monospace">Monospace</option>
+            <option value="'Courier New', monospace">Courier New</option>
+            <option value="'Consolas', monospace">Consolas</option>
+            <option value="Arial, sans-serif">Arial</option>
+            <option value="'Times New Roman', serif">Times New Roman</option>
+            <option value="Georgia, serif">Georgia</option>
+            <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
+            <option value="'Impact', sans-serif">Impact</option>
+            <option value="custom">Load Custom Font...</option>
+          </select>
+          <input type="file" id="customFontFile" accept=".ttf,.otf,.woff,.woff2" style="display: none;">
+          <div id="customFontName" style="display: none; margin-top: 8px; color: var(--color-secondary); font-size: 0.9em;"></div>
+        </div>
+
+        <div class="control-group text-only-control" id="fontSizeGroup">
+          <label class="control-label" data-default="24" ondblclick="resetToDefault(this, 'fontSize')">Font Size</label>
+          <div class="range-container">
+            <input type="range" id="fontSize" min="8" max="140" value="24">
+            <span class="range-value" id="fontSizeValue">24</span>
+          </div>
+        </div>
+
+        <div class="control-group text-only-control" id="fontStyleGroup">
+          <label class="control-label">Font Style</label>
+          <div class="font-style-group">
+            <label>
+              <input type="checkbox" id="fontBold">
+              Bold
+            </label>
+            <label>
+              <input type="checkbox" id="fontItalic">
+              Italic
+            </label>
+            <label>
+              <input type="checkbox" id="fontUnderline">
+              Underline
+            </label>
+          </div>
+        </div>
+
+        <div class="control-group text-only-control" id="fgColorGroup">
+          <label class="control-label">Fill Color</label>
+          <div class="control-group">
+            <label>
+              <input type="checkbox" id="rainbowFill">
+              Rainbow Gradient
+            </label>
+          </div>
+          <div class="color-palette" id="fgColorPalette"></div>
+        </div>
+
+        <div class="control-group text-only-control" id="gradientAngleGroup">
+          <label class="control-label" data-default="0" ondblclick="resetToDefault(this, 'gradientAngle')">Gradient Angle</label>
+          <div class="range-container">
+            <input type="range" id="gradientAngle" min="0" max="360" value="0">
+            <span class="range-value" id="gradientAngleValue">0°</span>
+          </div>
+        </div>
+
+        <div class="control-group text-only-control" id="outlineGroup">
+          <label class="control-label">
+            <input type="checkbox" id="textOutline">
+            Outline Text
+          </label>
+        </div>
+
+        <div class="control-group text-only-control" id="outlineColorGroup">
+          <label class="control-label">Outline Color</label>
+          <div class="control-group">
+            <label>
+              <input type="checkbox" id="rainbowOutline">
+              Rainbow Gradient
+            </label>
+          </div>
+          <div class="color-palette" id="outlineColorPalette"></div>
+        </div>
+
+        <div class="control-group text-only-control" id="outlineWidthGroup">
+          <label class="control-label" data-default="8" ondblclick="resetToDefault(this, 'outlineWidth')">Outline Width</label>
+          <div class="range-container">
+            <input type="range" id="outlineWidth" min="2" max="20" value="8">
+            <span class="range-value" id="outlineWidthValue">8</span>
+          </div>
+        </div>
+
+        <div class="control-group text-only-control" id="textEffectGroup">
+          <label class="control-label">Text Effect</label>
+          <select id="textEffect">
+            <option value="none">None</option>
+            <option value="wave">Wave</option>
+            <option value="drip">Drip</option>
+            <option value="flame">Flame</option>
+            <option value="shadow">Shadow</option>
+          </select>
+        </div>
+
+        <div class="control-group text-only-control" id="effectIntensityGroup">
+          <label class="control-label" data-default="5" ondblclick="resetToDefault(this, 'effectIntensity')">Effect Intensity</label>
+          <div class="range-container">
+            <input type="range" id="effectIntensity" min="1" max="10" value="5">
+            <span class="range-value" id="effectIntensityValue">5</span>
+          </div>
+        </div>
+
+        <div class="control-group text-only-control" id="effectPhaseGroup">
+          <label class="control-label" data-default="0" ondblclick="resetToDefault(this, 'effectPhase')">Effect Phase</label>
+          <div class="range-container">
+            <input type="range" id="effectPhase" min="0" max="100" value="0">
+            <span class="range-value" id="effectPhaseValue">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Canvas Settings Section -->
+      <div class="section">
+        <div class="section-title">Canvas Settings</div>
+
+        <div class="control-group">
+          <label class="control-label" data-default="80" ondblclick="resetToDefault(this, 'canvasWidth')">Canvas Width (chars)</label>
+          <div class="range-container">
+            <input type="range" id="canvasWidth" min="20" max="300" value="80">
+            <span class="range-value" id="canvasWidthValue">80</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label" data-default="40" ondblclick="resetToDefault(this, 'canvasHeight')">Canvas Height (chars)</label>
+          <div class="range-container">
+            <input type="range" id="canvasHeight" min="10" max="150" value="40">
+            <span class="range-value" id="canvasHeightValue">40</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label">Background Type</label>
+          <select id="bgType">
+            <option value="solid">Solid Color</option>
+            <option value="gradient">Gradient</option>
+            <option value="transparent">Transparent</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label">Background Color</label>
+          <div class="color-palette" id="canvasBgColorPalette"></div>
+        </div>
+      </div>
+
+      <!-- Layers Section -->
+      <div class="section">
+        <div class="section-title">Layers</div>
+        <div id="layersList"></div>
+      </div>
+
+      <!-- Export Section -->
+      <div class="section">
+        <div class="section-title">Export</div>
+        <button class="full-width-btn" id="copyToClipboard">Copy Plain Text</button>
+        <button class="full-width-btn" id="copyWithColors">Copy with ANSI Colors</button>
+        <button class="full-width-btn" id="exportANS">Download as .ans</button>
+        <button class="full-width-btn" id="exportANSI">Download with ANSI Colors</button>
+        <button class="full-width-btn" id="exportPNG">Download as PNG</button>
+      </div>
+
+      <!-- Footer -->
+      <footer class="panel-footer">
+        <a href="https://youtube.com/@CLU-NQR" target="_blank">YouTube</a> &middot;
+        <a href="https://discord.gg/HT9YE8rvuN" target="_blank">Discord</a> &middot;
+        <a href="https://nqrlabs.com" target="_blank">NQR Labs</a> &middot;
+        <a href="https://github.com/NQRLabs" target="_blank">GitHub</a>
+        <br>
+        &copy; 2025 NQR &middot; <a id="licenseFooter">License</a>
+      </footer>
+    </div>
+
+    <!-- Preview Panel -->
+    <div class="preview-panel">
+      <div class="preview-toolbar">
+        <button id="zoomIn">Zoom +</button>
+        <button id="zoomOut">Zoom -</button>
+        <button id="zoomReset">Reset Zoom</button>
+        <span style="margin-left: auto; color: var(--color-text-secondary);">
+          Click and drag to move layers | Adjust size with Width/Height sliders
+        </span>
+      </div>
+      <div class="preview-content">
+        <div id="ansiPreview"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- License Modal -->
+  <div class="license-overlay" id="licenseOverlay"></div>
+  <div class="license-modal" id="licenseModal" role="dialog" aria-modal="true" aria-labelledby="licenseModalTitle">
+    <div class="license-modal-header">
+      <h2 class="license-modal-title" id="licenseModalTitle">Ansitti License</h2>
+      <button type="button" class="license-close" id="licenseClose" aria-label="Close license modal">&times;</button>
+    </div>
+    <div class="license-modal-text">Ansitti - ANSI Art Generator - MIT License
+
+Copyright (c) 2025 NQR
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // ANSI COLOR PALETTE AND CHARACTER SETS
+    // ============================================================
+
+    const ANSI_COLORS = [
+      '#000000', // 0: Black
+      '#AA0000', // 1: Red
+      '#00AA00', // 2: Green
+      '#AA5500', // 3: Yellow/Brown
+      '#0000AA', // 4: Blue
+      '#AA00AA', // 5: Magenta
+      '#00AAAA', // 6: Cyan
+      '#AAAAAA', // 7: White/Light Gray
+      '#555555', // 8: Bright Black/Dark Gray
+      '#FF5555', // 9: Bright Red
+      '#55FF55', // 10: Bright Green
+      '#FFFF55', // 11: Bright Yellow
+      '#5555FF', // 12: Bright Blue
+      '#FF55FF', // 13: Bright Magenta
+      '#55FFFF', // 14: Bright Cyan
+      '#FFFFFF'  // 15: Bright White
+    ];
+
+    const BLOCK_CHARS = [' ', '░', '▒', '▓', '█'];
+    // Extended ASCII character set for more detail - ordered by visual density
+    const ASCII_CHARS = [' ', '.', "'", '`', '^', '"', ',', ':', ';', 'I', 'l', '!', 'i', '>', '<', '~', '+', '_', '-', '?', ']', '[', '}', '{', '1', ')', '(', '|', '\\', '/', 't', 'f', 'j', 'r', 'x', 'n', 'u', 'v', 'c', 'z', 'X', 'Y', 'U', 'J', 'C', 'L', 'Q', '0', 'O', 'Z', 'm', 'w', 'q', 'p', 'd', 'b', 'k', 'h', 'a', 'o', '*', '#', 'M', 'W', '&', '8', '%', 'B', '@', '$'];
+    const HALF_BLOCK_CHARS = ['▀', '▄'];
+
+    const CHAR_WIDTH = 8.4;
+    const CHAR_HEIGHT = 14;
+    const TRANSPARENT_COLOR = -1;
+
+    // ============================================================
+    // STATE MANAGEMENT
+    // ============================================================
+
+    let state = {
+      layers: [],
+      selectedLayerId: null,
+      nextLayerId: 1,
+      canvasWidth: 80, // Will be recalculated on load
+      canvasHeight: 40, // Will be recalculated on load
+      canvasBgColor: 0,
+      canvasBgType: 'solid',
+      zoom: 1,
+      dragState: null
+    };
+
+    // Calculate optimal canvas size based on preview window
+    function calculateOptimalCanvasSize() {
+      const preview = document.getElementById('ansiPreview');
+      const previewRect = preview.getBoundingClientRect();
+
+      // Calculate max characters that fit in preview
+      // Be conservative - use 80% of available space to ensure it fits
+      const maxPixelWidth = (previewRect.width * 0.8);
+      const maxPixelHeight = (previewRect.height * 0.8);
+      const maxCharsWidth = Math.floor(maxPixelWidth / CHAR_WIDTH);
+      const maxCharsHeight = Math.floor(maxPixelHeight / CHAR_HEIGHT);
+
+      // Ensure reasonable bounds
+      const width = Math.max(40, Math.min(200, maxCharsWidth));
+      const height = Math.max(20, Math.min(100, maxCharsHeight));
+
+      return { width, height };
+    }
+
+    // Double-click label to reset to default value
+    function resetToDefault(label, controlId) {
+      let defaultValue;
+
+      // For canvas dimensions, recalculate optimal size
+      if (controlId === 'canvasWidth' || controlId === 'canvasHeight') {
+        const optimalSize = calculateOptimalCanvasSize();
+        defaultValue = (controlId === 'canvasWidth') ? optimalSize.width : optimalSize.height;
+      } else {
+        defaultValue = parseInt(label.getAttribute('data-default'));
+      }
+
+      const control = document.getElementById(controlId);
+      const valueDisplay = document.getElementById(controlId + 'Value');
+
+      control.value = defaultValue;
+      if (valueDisplay) {
+        if (controlId === 'gradientAngle') {
+          valueDisplay.textContent = defaultValue + '°';
+        } else {
+          valueDisplay.textContent = defaultValue;
+        }
+      }
+
+      // Trigger change event
+      control.dispatchEvent(new Event('input'));
+    }
+
+    // ============================================================
+    // INITIALIZATION
+    // ============================================================
+
+    function init() {
+      // Calculate optimal canvas size based on preview window
+      const optimalSize = calculateOptimalCanvasSize();
+      state.canvasWidth = optimalSize.width;
+      state.canvasHeight = optimalSize.height;
+
+      // Update UI controls to reflect calculated values
+      document.getElementById('canvasWidth').value = optimalSize.width;
+      document.getElementById('canvasWidthValue').textContent = optimalSize.width;
+      document.getElementById('canvasHeight').value = optimalSize.height;
+      document.getElementById('canvasHeightValue').textContent = optimalSize.height;
+
+      // Initialize color palettes with transparent option
+      initColorPalette('fgColorPalette', 15, (colorIndex) => {
+        updateSelectedLayerColor('fg', colorIndex);
+      }, true);
+
+      initColorPalette('outlineColorPalette', 0, (colorIndex) => {
+        updateSelectedLayerOutline('color', colorIndex);
+      }, false);
+
+      initColorPalette('canvasBgColorPalette', 0, (colorIndex) => {
+        state.canvasBgColor = colorIndex;
+        updateColorPaletteSelection('canvasBgColorPalette', colorIndex);
+        renderPreview();
+      }, false);
+
+      // Event listeners
+      document.getElementById('addImageBtn').addEventListener('click', () => {
+        document.getElementById('imageUpload').click();
+      });
+
+      document.getElementById('imageUpload').addEventListener('change', handleImageUpload);
+      document.getElementById('addTextBtn').addEventListener('click', addTextLayer);
+
+      document.getElementById('addAnsiBtn').addEventListener('click', () => {
+        document.getElementById('ansiUpload').click();
+      });
+
+      document.getElementById('ansiUpload').addEventListener('change', handleAnsiUpload);
+
+      document.getElementById('blockModeBtn').addEventListener('click', () => setCharMode('block'));
+      document.getElementById('asciiModeBtn').addEventListener('click', () => setCharMode('ascii'));
+      document.getElementById('halfBlockModeBtn').addEventListener('click', () => setCharMode('halfblock'));
+
+      // Real-time layer property updates
+      document.getElementById('layerWidth').addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        document.getElementById('layerWidthValue').textContent = value;
+        updateSelectedLayerDimensions('width', value);
+      });
+
+      document.getElementById('layerHeight').addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        document.getElementById('layerHeightValue').textContent = value;
+        updateSelectedLayerDimensions('height', value);
+      });
+
+      document.getElementById('layerRotation').addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        document.getElementById('layerRotationValue').textContent = value;
+        updateSelectedLayerRotation(value);
+      });
+
+      document.getElementById('imageHue').addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        document.getElementById('imageHueValue').textContent = value;
+        updateSelectedLayerImageAdjustment('hue', value);
+      });
+
+      document.getElementById('imageSaturation').addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        document.getElementById('imageSaturationValue').textContent = value;
+        updateSelectedLayerImageAdjustment('saturation', value);
+      });
+
+      document.getElementById('imageContrast').addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        document.getElementById('imageContrastValue').textContent = value;
+        updateSelectedLayerImageAdjustment('contrast', value);
+      });
+
+      document.getElementById('imageBrightness').addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        document.getElementById('imageBrightnessValue').textContent = value;
+        updateSelectedLayerImageAdjustment('brightness', value);
+      });
+
+      document.getElementById('ansiRowWidth').addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        document.getElementById('ansiRowWidthValue').textContent = value;
+        updateSelectedLayerAnsiRowWidth(value);
+      });
+
+      document.getElementById('resetLayerBtn').addEventListener('click', resetSelectedLayer);
+
+      document.getElementById('textContent').addEventListener('input', (e) => {
+        updateSelectedLayerText(e.target.value);
+      });
+
+      document.getElementById('fontFamily').addEventListener('change', (e) => {
+        if (e.target.value === 'custom') {
+          document.getElementById('customFontFile').click();
+        } else {
+          updateSelectedLayerFont('family', e.target.value);
+        }
+      });
+
+      document.getElementById('customFontFile').addEventListener('change', handleCustomFontUpload);
+
+      document.getElementById('fontSize').addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        document.getElementById('fontSizeValue').textContent = value;
+        updateSelectedLayerFont('size', value);
+      });
+
+      document.getElementById('fontBold').addEventListener('change', (e) => {
+        updateSelectedLayerFont('bold', e.target.checked);
+      });
+
+      document.getElementById('fontItalic').addEventListener('change', (e) => {
+        updateSelectedLayerFont('italic', e.target.checked);
+      });
+
+      document.getElementById('fontUnderline').addEventListener('change', (e) => {
+        updateSelectedLayerFont('underline', e.target.checked);
+      });
+
+      document.getElementById('textOutline').addEventListener('change', (e) => {
+        updateSelectedLayerOutline('enabled', e.target.checked);
+      });
+
+      document.getElementById('outlineWidth').addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        document.getElementById('outlineWidthValue').textContent = value;
+        updateSelectedLayerOutline('width', value);
+      });
+
+      document.getElementById('canvasWidth').addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        document.getElementById('canvasWidthValue').textContent = value;
+        state.canvasWidth = value;
+        renderPreview();
+      });
+
+      document.getElementById('canvasHeight').addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        document.getElementById('canvasHeightValue').textContent = value;
+        state.canvasHeight = value;
+        renderPreview();
+      });
+
+      document.getElementById('bgType').addEventListener('change', (e) => {
+        state.canvasBgType = e.target.value;
+        renderPreview();
+      });
+
+      document.getElementById('rainbowFill').addEventListener('change', (e) => {
+        updateSelectedLayerRainbow('fill', e.target.checked);
+      });
+
+      document.getElementById('rainbowOutline').addEventListener('change', (e) => {
+        updateSelectedLayerRainbow('outline', e.target.checked);
+      });
+
+      document.getElementById('gradientAngle').addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        document.getElementById('gradientAngleValue').textContent = value + '°';
+        updateSelectedLayerGradientAngle(value);
+      });
+
+      document.getElementById('textEffect').addEventListener('change', (e) => {
+        updateSelectedLayerEffect('type', e.target.value);
+      });
+
+      document.getElementById('effectIntensity').addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        document.getElementById('effectIntensityValue').textContent = value;
+        updateSelectedLayerEffect('intensity', value);
+      });
+
+      document.getElementById('effectPhase').addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        document.getElementById('effectPhaseValue').textContent = value;
+        updateSelectedLayerEffect('phase', value);
+      });
+
+      document.getElementById('copyToClipboard').addEventListener('click', copyToClipboard);
+      document.getElementById('copyWithColors').addEventListener('click', copyWithColors);
+      document.getElementById('exportANS').addEventListener('click', exportANS);
+      document.getElementById('exportANSI').addEventListener('click', exportANSI);
+      document.getElementById('exportPNG').addEventListener('click', exportPNG);
+
+      document.getElementById('zoomIn').addEventListener('click', () => {
+        state.zoom = Math.min(state.zoom * 1.2, 5);
+        applyZoom();
+      });
+
+      document.getElementById('zoomOut').addEventListener('click', () => {
+        state.zoom = Math.max(state.zoom / 1.2, 0.2);
+        applyZoom();
+      });
+
+      document.getElementById('zoomReset').addEventListener('click', () => {
+        state.zoom = 1;
+        applyZoom();
+      });
+
+      // Preview interactions
+      const preview = document.getElementById('ansiPreview');
+      preview.addEventListener('mousedown', handlePreviewMouseDown);
+      document.addEventListener('mousemove', handlePreviewMouseMove);
+      document.addEventListener('mouseup', handlePreviewMouseUp);
+
+      // License modal
+      document.getElementById('licenseFooter').addEventListener('click', openLicenseModal);
+      document.getElementById('licenseClose').addEventListener('click', closeLicenseModal);
+      document.getElementById('licenseOverlay').addEventListener('click', closeLicenseModal);
+
+      updateControlsVisibility();
+      renderPreview();
+    }
+
+    // ============================================================
+    // COLOR PALETTE
+    // ============================================================
+
+    function initColorPalette(elementId, defaultColor, onSelect, includeTransparent) {
+      const palette = document.getElementById(elementId);
+      palette.innerHTML = '';
+
+      if (includeTransparent) {
+        const transparentSwatch = document.createElement('div');
+        transparentSwatch.className = 'color-swatch transparent';
+        if (defaultColor === TRANSPARENT_COLOR) {
+          transparentSwatch.classList.add('selected');
+        }
+        transparentSwatch.addEventListener('click', () => {
+          onSelect(TRANSPARENT_COLOR);
+        });
+        palette.appendChild(transparentSwatch);
+      }
+
+      ANSI_COLORS.forEach((color, index) => {
+        const swatch = document.createElement('div');
+        swatch.className = 'color-swatch';
+        swatch.style.backgroundColor = color;
+        if (index === defaultColor) {
+          swatch.classList.add('selected');
+        }
+        swatch.addEventListener('click', () => {
+          onSelect(index);
+        });
+        palette.appendChild(swatch);
+      });
+    }
+
+    function updateColorPaletteSelection(elementId, selectedIndex) {
+      const palette = document.getElementById(elementId);
+      const swatches = palette.querySelectorAll('.color-swatch');
+      swatches.forEach((swatch, index) => {
+        // Account for transparent swatch if present
+        const hasTransparent = swatch.parentElement.querySelector('.transparent');
+        const adjustedIndex = hasTransparent ? index - 1 : index;
+        swatch.classList.toggle('selected', adjustedIndex === selectedIndex);
+      });
+    }
+
+    // ============================================================
+    // CHARACTER MODE
+    // ============================================================
+
+    function setCharMode(mode) {
+      document.getElementById('blockModeBtn').classList.toggle('active', mode === 'block');
+      document.getElementById('asciiModeBtn').classList.toggle('active', mode === 'ascii');
+      document.getElementById('halfBlockModeBtn').classList.toggle('active', mode === 'halfblock');
+
+      const layer = getSelectedLayer();
+      if (layer) {
+        layer.charMode = mode;
+        regenerateLayerANSI(layer);
+        renderPreview();
+      }
+    }
+
+    // ============================================================
+    // LAYER PROPERTY UPDATES (REAL-TIME)
+    // ============================================================
+
+    function updateSelectedLayerDimensions(dimension, value) {
+      const layer = getSelectedLayer();
+      if (!layer) return;
+
+      if (dimension === 'width') {
+        layer.width = value;
+      } else if (dimension === 'height') {
+        layer.height = value;
+      }
+
+      regenerateLayerANSI(layer);
+      renderPreview();
+    }
+
+    function updateSelectedLayerText(text) {
+      const layer = getSelectedLayer();
+      if (!layer || layer.type !== 'text') return;
+
+      layer.text = text;
+      regenerateLayerANSI(layer);
+      renderPreview();
+    }
+
+    function updateSelectedLayerFont(property, value) {
+      const layer = getSelectedLayer();
+      if (!layer || layer.type !== 'text') return;
+
+      if (property === 'family') {
+        layer.fontFamily = value;
+      } else if (property === 'size') {
+        layer.fontSize = value;
+      } else if (property === 'bold') {
+        layer.fontBold = value;
+      } else if (property === 'italic') {
+        layer.fontItalic = value;
+      } else if (property === 'underline') {
+        layer.fontUnderline = value;
+      }
+
+      regenerateLayerANSI(layer);
+      renderPreview();
+    }
+
+    function updateSelectedLayerColor(colorType, colorIndex) {
+      const layer = getSelectedLayer();
+      if (!layer || layer.type !== 'text') return;
+
+      if (colorType === 'fg') {
+        layer.fgColor = colorIndex;
+        updateColorPaletteSelection('fgColorPalette', colorIndex);
+      }
+
+      regenerateLayerANSI(layer);
+      renderPreview();
+    }
+
+    function updateSelectedLayerOutline(property, value) {
+      const layer = getSelectedLayer();
+      if (!layer || layer.type !== 'text') return;
+
+      if (property === 'enabled') {
+        layer.outline = value;
+      } else if (property === 'color') {
+        layer.outlineColor = value;
+        updateColorPaletteSelection('outlineColorPalette', value);
+      } else if (property === 'width') {
+        layer.outlineWidth = value;
+      }
+
+      regenerateLayerANSI(layer);
+      renderPreview();
+    }
+
+    function updateSelectedLayerRotation(value) {
+      const layer = getSelectedLayer();
+      if (!layer) return;
+
+      layer.rotation = value;
+      regenerateLayerANSI(layer);
+      renderPreview();
+    }
+
+    function updateSelectedLayerImageAdjustment(property, value) {
+      const layer = getSelectedLayer();
+      if (!layer || layer.type !== 'image') return;
+
+      if (!layer.imageAdjustments) {
+        layer.imageAdjustments = { hue: 0, saturation: 0, contrast: 0, brightness: 0 };
+      }
+
+      layer.imageAdjustments[property] = value;
+      regenerateLayerANSI(layer);
+      renderPreview();
+    }
+
+    function updateSelectedLayerRainbow(type, enabled) {
+      const layer = getSelectedLayer();
+      if (!layer || layer.type !== 'text') return;
+
+      if (type === 'fill') {
+        layer.rainbowFill = enabled;
+      } else if (type === 'outline') {
+        layer.rainbowOutline = enabled;
+      }
+
+      regenerateLayerANSI(layer);
+      renderPreview();
+    }
+
+    function updateSelectedLayerGradientAngle(angle) {
+      const layer = getSelectedLayer();
+      if (!layer || layer.type !== 'text') return;
+
+      layer.gradientAngle = angle;
+      regenerateLayerANSI(layer);
+      renderPreview();
+    }
+
+    function updateSelectedLayerEffect(property, value) {
+      const layer = getSelectedLayer();
+      if (!layer || layer.type !== 'text') return;
+
+      if (property === 'type') {
+        layer.textEffect = value;
+      } else if (property === 'intensity') {
+        layer.effectIntensity = value;
+      } else if (property === 'phase') {
+        layer.effectPhase = value;
+      }
+
+      regenerateLayerANSI(layer);
+      renderPreview();
+    }
+
+    function resetSelectedLayer() {
+      const layer = getSelectedLayer();
+      if (!layer) return;
+
+      // Reset common properties
+      layer.rotation = 0;
+      document.getElementById('layerRotation').value = 0;
+      document.getElementById('layerRotationValue').textContent = '0';
+
+      // Reset image adjustments if image layer
+      if (layer.type === 'image') {
+        layer.imageAdjustments = { hue: 0, saturation: 0, contrast: 0, brightness: 0 };
+        document.getElementById('imageHue').value = 0;
+        document.getElementById('imageHueValue').textContent = '0';
+        document.getElementById('imageSaturation').value = 0;
+        document.getElementById('imageSaturationValue').textContent = '0';
+        document.getElementById('imageContrast').value = 0;
+        document.getElementById('imageContrastValue').textContent = '0';
+        document.getElementById('imageBrightness').value = 0;
+        document.getElementById('imageBrightnessValue').textContent = '0';
+      }
+
+      regenerateLayerANSI(layer);
+      renderPreview();
+    }
+
+    // ============================================================
+    // LAYER REGENERATION
+    // ============================================================
+
+    function regenerateLayerANSI(layer) {
+      if (layer.type === 'image') {
+        if (layer.sourceImage) {
+          layer.ansiData = convertImageToANSI(
+            layer.sourceImage,
+            layer.width,
+            layer.height,
+            layer.charMode,
+            undefined,
+            undefined,
+            layer.rotation || 0,
+            layer.imageAdjustments || { hue: 0, saturation: 0, contrast: 0, brightness: 0 }
+          );
+        }
+      } else if (layer.type === 'text') {
+        const canvas = renderTextToCanvas(layer);
+        // Use outline color as background when outline is enabled
+        const textBgColor = (layer.outline && layer.outlineColor !== TRANSPARENT_COLOR)
+          ? layer.outlineColor
+          : TRANSPARENT_COLOR;
+        layer.ansiData = convertImageToANSI(
+          canvas,
+          layer.width,
+          layer.height,
+          layer.charMode,
+          layer.fgColor,
+          textBgColor,
+          layer.rotation || 0
+        );
+      }
+    }
+
+    function renderTextToCanvas(layer) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      let fontString = '';
+      if (layer.fontItalic) fontString += 'italic ';
+      if (layer.fontBold) fontString += 'bold ';
+      fontString += `${layer.fontSize}px ${layer.fontFamily}`;
+
+      ctx.font = fontString;
+
+      const lines = layer.text.split('\n');
+      const maxWidth = Math.max(...lines.map(line => ctx.measureText(line).width)) || 100;
+      const padding = layer.outline ? layer.outlineWidth * 6 : 0;
+      canvas.width = maxWidth + padding;
+      canvas.height = (layer.fontSize * lines.length * 1.2) + padding || 100;
+
+      // After resizing canvas, context is reset - need to reconfigure
+      ctx.font = fontString;
+      ctx.textBaseline = 'top';
+
+      // Explicitly clear entire canvas to fully transparent
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const offsetX = layer.outline ? layer.outlineWidth * 3 : 0;
+      const offsetY = layer.outline ? layer.outlineWidth * 3 : 0;
+
+      // Text effect settings
+      const textEffect = layer.textEffect || 'none';
+      const effectIntensity = (layer.effectIntensity || 5) / 10; // Normalize to 0-1
+      const effectPhase = (layer.effectPhase || 0) / 100; // Normalize to 0-1
+
+      // Rainbow gradient settings
+      const gradientAngle = (layer.gradientAngle || 0) * Math.PI / 180;
+      const rainbowFill = layer.rainbowFill || false;
+      const rainbowOutline = layer.rainbowOutline || false;
+
+      lines.forEach((line, lineIndex) => {
+        let baseY = lineIndex * layer.fontSize * 1.2 + offsetY;
+
+        // Draw each character individually for rainbow gradient and text effects
+        for (let charIndex = 0; charIndex < line.length; charIndex++) {
+          const char = line[charIndex];
+          if (char === ' ') continue;
+
+          const charWidth = ctx.measureText(char).width;
+          let x = offsetX + ctx.measureText(line.substring(0, charIndex)).width;
+          let y = baseY;
+
+          // Apply text effects
+          let effectOffset = { x: 0, y: 0 };
+          if (textEffect !== 'none' && textEffect !== 'shadow') {
+            effectOffset = applyTextEffect(textEffect, charIndex, lineIndex, effectIntensity, effectPhase, layer.fontSize);
+            x += effectOffset.x;
+            y += effectOffset.y;
+          }
+
+          // Calculate rainbow color if enabled
+          let fillColor = layer.fgColor !== TRANSPARENT_COLOR ? '#fff' : 'rgba(0,0,0,0)';
+          let outlineColor = layer.outlineColor !== TRANSPARENT_COLOR ? ANSI_COLORS[layer.outlineColor] : 'rgba(0,0,0,0)';
+
+          if (rainbowFill || rainbowOutline) {
+            const rainbowColor = getRainbowColor(x, y, canvas.width, canvas.height, gradientAngle);
+            if (rainbowFill) fillColor = rainbowColor;
+            if (rainbowOutline) outlineColor = rainbowColor;
+          }
+
+          // Draw shadow effect FIRST (behind everything)
+          if (textEffect === 'shadow') {
+            const shadowOffset = layer.fontSize * effectIntensity * 0.15;
+            ctx.globalAlpha = 0.5;
+            ctx.fillStyle = '#000';
+            ctx.fillText(char, x + shadowOffset, y + shadowOffset);
+            ctx.globalAlpha = 1;
+          }
+
+          // Draw outline with glow effect
+          if (layer.outline && layer.outlineColor !== TRANSPARENT_COLOR) {
+            ctx.strokeStyle = outlineColor;
+
+            // Glow layers
+            for (let glow = 3; glow > 0; glow--) {
+              ctx.globalAlpha = 0.3 / glow;
+              ctx.lineWidth = layer.outlineWidth + (glow * 2);
+              ctx.strokeText(char, x, y);
+            }
+
+            // Main outline
+            ctx.globalAlpha = 1;
+            ctx.lineWidth = layer.outlineWidth;
+            ctx.strokeText(char, x, y);
+          }
+
+          // Draw fill
+          if (layer.fgColor !== TRANSPARENT_COLOR) {
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = fillColor;
+            ctx.fillText(char, x, y);
+          }
+
+          // Draw underline
+          if (layer.fontUnderline) {
+            ctx.beginPath();
+            ctx.moveTo(x, y + layer.fontSize + 2);
+            ctx.lineTo(x + charWidth, y + layer.fontSize + 2);
+            ctx.strokeStyle = fillColor;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+
+          // Reset context state after each character to prevent artifacts
+          ctx.globalAlpha = 1;
+          ctx.globalCompositeOperation = 'source-over';
+        }
+      });
+
+      return canvas;
+    }
+
+    function applyTextEffect(effect, charIndex, lineIndex, intensity, phase, fontSize) {
+      const offset = { x: 0, y: 0 };
+      const scale = intensity * fontSize * 0.3;
+
+      // Phase controls wavelength/frequency (0-1 maps to 0.1-2.0 multiplier)
+      const frequency = 0.1 + (phase * 1.9);
+
+      switch (effect) {
+        case 'wave':
+          // Sine wave effect - phase controls wavelength
+          offset.y = Math.sin(charIndex * 0.5 * frequency) * scale;
+          break;
+
+        case 'drip':
+          // Drip effect - phase controls drip pattern variation
+          const dripVariation = Math.floor(3 + phase * 7); // 3-10 variation
+          const dripAmount = (charIndex % dripVariation) * scale * 0.8;
+          offset.y = dripAmount;
+          break;
+
+        case 'flame':
+          // Flame effect - phase controls flame flicker speed
+          offset.y = -Math.abs(Math.sin(charIndex * 0.8 * frequency)) * scale;
+          offset.x = Math.sin(charIndex * 1.2 * frequency + lineIndex) * scale * 0.3;
+          break;
+      }
+
+      return offset;
+    }
+
+    function getRainbowColor(x, y, width, height, angle) {
+      // Calculate position along gradient direction
+      // Rotate coordinates by angle
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const dx = x - centerX;
+      const dy = y - centerY;
+
+      // Project onto gradient axis
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const projected = dx * cos + dy * sin;
+
+      // Normalize to 0-1 range (map from -diagonal to +diagonal)
+      const diagonal = Math.sqrt(width * width + height * height) / 2;
+      const normalizedPos = (projected / diagonal + 1) / 2; // Map from [-1, 1] to [0, 1]
+
+      // Map to rainbow hue (0-360 degrees) and repeat every full spectrum
+      const hue = (normalizedPos * 360 * 3) % 360; // Multiply by 3 for more rainbow cycles
+
+      // Convert HSL to RGB - proper HSL conversion
+      const s = 1.0; // Full saturation
+      const l = 0.5; // Medium lightness
+
+      const c = (1 - Math.abs(2 * l - 1)) * s;
+      const x_rgb = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+      const m = l - c / 2;
+
+      let r, g, b;
+      const h = hue / 60;
+      if (h < 1) { r = c; g = x_rgb; b = 0; }
+      else if (h < 2) { r = x_rgb; g = c; b = 0; }
+      else if (h < 3) { r = 0; g = c; b = x_rgb; }
+      else if (h < 4) { r = 0; g = x_rgb; b = c; }
+      else if (h < 5) { r = x_rgb; g = 0; b = c; }
+      else { r = c; g = 0; b = x_rgb; }
+
+      r = Math.round((r + m) * 255);
+      g = Math.round((g + m) * 255);
+      b = Math.round((b + m) * 255);
+
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    // ============================================================
+    // IMAGE UPLOAD AND CONVERSION
+    // ============================================================
+
+    function handleImageUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          let charMode = 'block';
+          if (document.getElementById('asciiModeBtn').classList.contains('active')) charMode = 'ascii';
+          if (document.getElementById('halfBlockModeBtn').classList.contains('active')) charMode = 'halfblock';
+
+          // Auto-calculate dimensions to fit preview while maintaining aspect ratio
+          const preview = document.getElementById('ansiPreview');
+          const previewRect = preview.getBoundingClientRect();
+
+          // Calculate max characters that fit in preview
+          // Leave some padding (20px on each side)
+          const maxPixelWidth = previewRect.width - 40;
+          const maxPixelHeight = previewRect.height - 40;
+          const maxCharsWidth = Math.floor(maxPixelWidth / CHAR_WIDTH);
+          const maxCharsHeight = Math.floor(maxPixelHeight / CHAR_HEIGHT);
+
+          // Calculate aspect ratio of image
+          const imgAspect = img.width / img.height;
+
+          // Calculate best fit maintaining aspect ratio
+          // Account for character aspect ratio (characters are taller than wide)
+          let width, height;
+
+          // Half-block mode doubles VERTICAL resolution only
+          // So in half-block, each character covers 2 vertical pixels
+          // This means we need FEWER character rows for the same pixel height
+          const charHeightPixels = (charMode === 'halfblock') ? CHAR_HEIGHT * 2 : CHAR_HEIGHT;
+
+          // Try fitting by width first
+          width = maxCharsWidth;
+          // height = (width × CHAR_WIDTH) / (imgAspect × charHeightPixels)
+          height = Math.floor((width * CHAR_WIDTH) / (imgAspect * charHeightPixels));
+
+          // If height exceeds max, fit by height instead
+          if (height > maxCharsHeight) {
+            height = maxCharsHeight;
+            // width = (height × imgAspect × charHeightPixels) / CHAR_WIDTH
+            width = Math.floor((height * imgAspect * charHeightPixels) / CHAR_WIDTH);
+          }
+
+          // Ensure minimum dimensions
+          width = Math.max(20, Math.min(200, width));
+          height = Math.max(10, Math.min(100, height));
+
+          // Update UI sliders
+          document.getElementById('layerWidth').value = width;
+          document.getElementById('layerWidthValue').textContent = width;
+          document.getElementById('layerHeight').value = height;
+          document.getElementById('layerHeightValue').textContent = height;
+
+          const ansiData = convertImageToANSI(img, width, height, charMode);
+          addLayer('image', ansiData, width, height, charMode, img);
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+
+      e.target.value = '';
+    }
+
+    function convertImageToANSI(img, width, height, charMode, fgColor, bgColor, rotation, imageAdjustments) {
+      rotation = rotation || 0;
+      imageAdjustments = imageAdjustments || { hue: 0, saturation: 0, contrast: 0, brightness: 0 };
+
+      // Create intermediate canvas for rotation and adjustments
+      const intermediateCanvas = document.createElement('canvas');
+      const intermediateCtx = intermediateCanvas.getContext('2d');
+
+      // Handle rotation - rotate the source before scaling
+      if (rotation !== 0) {
+        const rad = rotation * Math.PI / 180;
+        const sin = Math.abs(Math.sin(rad));
+        const cos = Math.abs(Math.cos(rad));
+
+        const imgWidth = img.width || img.naturalWidth || width;
+        const imgHeight = img.height || img.naturalHeight || height;
+
+        // Calculate rotated dimensions
+        const rotatedWidth = imgWidth * cos + imgHeight * sin;
+        const rotatedHeight = imgWidth * sin + imgHeight * cos;
+
+        intermediateCanvas.width = rotatedWidth;
+        intermediateCanvas.height = rotatedHeight;
+
+        // Rotate and draw
+        intermediateCtx.translate(rotatedWidth / 2, rotatedHeight / 2);
+        intermediateCtx.rotate(rad);
+        intermediateCtx.drawImage(img, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
+      } else {
+        const imgWidth = img.width || img.naturalWidth || width;
+        const imgHeight = img.height || img.naturalHeight || height;
+        intermediateCanvas.width = imgWidth;
+        intermediateCanvas.height = imgHeight;
+        intermediateCtx.drawImage(img, 0, 0);
+      }
+
+      // Apply image adjustments
+      if (imageAdjustments.hue !== 0 || imageAdjustments.saturation !== 0 ||
+          imageAdjustments.contrast !== 0 || imageAdjustments.brightness !== 0) {
+        const tempData = intermediateCtx.getImageData(0, 0, intermediateCanvas.width, intermediateCanvas.height);
+        applyImageAdjustments(tempData, imageAdjustments);
+        intermediateCtx.putImageData(tempData, 0, 0);
+      }
+
+      const ansiData = [];
+      let chars;
+      if (charMode === 'block') chars = BLOCK_CHARS;
+      else if (charMode === 'ascii') chars = ASCII_CHARS;
+      else if (charMode === 'halfblock') chars = HALF_BLOCK_CHARS;
+
+      // For text layers, use dual-color approach to preserve outline colors
+      if (fgColor !== undefined && bgColor !== undefined) {
+        // If half-block mode, use the half-block conversion with text colors
+        if (charMode === 'halfblock') {
+          return convertTextToHalfBlock(intermediateCanvas, width, height, fgColor, bgColor);
+        }
+
+        const textChars = chars;
+
+        // Sample at 2x resolution for better color detection
+        const sampleScale = 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = width * sampleScale;
+        canvas.height = height * sampleScale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(intermediateCanvas, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+        for (let y = 0; y < height; y++) {
+          const row = [];
+          for (let x = 0; x < width; x++) {
+            // Sample a 2x2 block of pixels for this character
+            const pixels = [];
+            let allTransparent = true;
+
+            for (let sy = 0; sy < sampleScale; sy++) {
+              for (let sx = 0; sx < sampleScale; sx++) {
+                const px = x * sampleScale + sx;
+                const py = y * sampleScale + sy;
+                const i = (py * canvas.width + px) * 4;
+
+                const r = imageData.data[i];
+                const g = imageData.data[i + 1];
+                const b = imageData.data[i + 2];
+                const a = imageData.data[i + 3];
+
+                if (a >= 128) {
+                  allTransparent = false;
+                  const brightness = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
+                  pixels.push({ r, g, b, brightness });
+                }
+              }
+            }
+
+            if (allTransparent) {
+              row.push({ char: ' ', fg: TRANSPARENT_COLOR, bg: TRANSPARENT_COLOR });
+              continue;
+            }
+
+            // Calculate average brightness for character selection
+            const avgBrightness = pixels.reduce((sum, p) => sum + p.brightness, 0) / pixels.length;
+
+            // Choose character based on brightness
+            const charIndex = Math.floor(avgBrightness * (textChars.length - 1));
+            const char = textChars[charIndex];
+
+            // Detect actual color from canvas (handles rainbow mode)
+            // If the average color is close to white, use the user's selected fgColor
+            // Otherwise, detect the color from canvas (rainbow gradient case)
+            const avgR = pixels.reduce((sum, p) => sum + p.r, 0) / pixels.length;
+            const avgG = pixels.reduce((sum, p) => sum + p.g, 0) / pixels.length;
+            const avgB = pixels.reduce((sum, p) => sum + p.b, 0) / pixels.length;
+
+            // Check if pixel is approximately white (threshold for "close to white")
+            const isWhite = avgR > 240 && avgG > 240 && avgB > 240;
+
+            let actualFgColor = fgColor;
+            if (!isWhite && fgColor !== TRANSPARENT_COLOR) {
+              // Detect color from canvas (rainbow mode)
+              actualFgColor = findClosestColor(avgR, avgG, avgB);
+            }
+
+            row.push({ char, fg: actualFgColor, bg: bgColor });
+          }
+          ansiData.push(row);
+        }
+
+        return ansiData;
+      }
+
+      // For image layers - HALF-BLOCK MODE
+      if (charMode === 'halfblock') {
+        return convertImageToHalfBlock(intermediateCanvas, width, height);
+      }
+
+      // For image layers - STANDARD MODE (block/ascii)
+      // Key fix: Keep ORIGINAL colors separate from brightness-enhanced version
+      const sampleScale = 3;
+      const canvas = document.createElement('canvas');
+      canvas.width = width * sampleScale;
+      canvas.height = height * sampleScale;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(intermediateCanvas, 0, 0, canvas.width, canvas.height);
+
+      // Get ORIGINAL colors (unmodified)
+      const originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const originalData = new Uint8ClampedArray(originalImageData.data);
+
+      // Create enhanced version ONLY for brightness calculation
+      const enhancedImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      liftShadows(enhancedImageData, 40);
+      normalizeHistogram(enhancedImageData);
+      applyGammaCorrection(enhancedImageData, 0.35);
+
+      // Now convert with dual-color per character
+      for (let y = 0; y < height; y++) {
+        const row = [];
+        for (let x = 0; x < width; x++) {
+          // Sample a 3x3 block of pixels for this character
+          const originalPixels = [];
+          const enhancedPixels = [];
+          let allTransparent = true;
+
+          for (let sy = 0; sy < sampleScale; sy++) {
+            for (let sx = 0; sx < sampleScale; sx++) {
+              const px = x * sampleScale + sx;
+              const py = y * sampleScale + sy;
+              const i = (py * canvas.width + px) * 4;
+
+              const a = originalData[i + 3];
+
+              if (a >= 128) {
+                allTransparent = false;
+
+                // Original color (for color mapping)
+                const origR = originalData[i];
+                const origG = originalData[i + 1];
+                const origB = originalData[i + 2];
+
+                // Enhanced brightness (for character selection)
+                const enhR = enhancedImageData.data[i];
+                const enhG = enhancedImageData.data[i + 1];
+                const enhB = enhancedImageData.data[i + 2];
+                const brightness = (enhR * 0.299 + enhG * 0.587 + enhB * 0.114) / 255;
+
+                originalPixels.push({ r: origR, g: origG, b: origB });
+                enhancedPixels.push({ brightness });
+              }
+            }
+          }
+
+          // If entire block is transparent, use transparent character
+          if (allTransparent) {
+            row.push({ char: ' ', fg: TRANSPARENT_COLOR, bg: TRANSPARENT_COLOR });
+            continue;
+          }
+
+          // Sort by ENHANCED brightness
+          const sortedIndices = enhancedPixels
+            .map((p, i) => ({ brightness: p.brightness, index: i }))
+            .sort((a, b) => a.brightness - b.brightness);
+
+          // Get darkest and lightest ORIGINAL colors
+          const darkIndex = sortedIndices[0].index;
+          const lightIndex = sortedIndices[sortedIndices.length - 1].index;
+          const darkPixel = originalPixels[darkIndex];
+          const lightPixel = originalPixels[lightIndex];
+
+          // Calculate average brightness for character selection
+          const avgBrightness = enhancedPixels.reduce((sum, p) => sum + p.brightness, 0) / enhancedPixels.length;
+
+          // Map ORIGINAL colors to ANSI (preserves saturation!)
+          const bgColor = findClosestColor(darkPixel.r, darkPixel.g, darkPixel.b);
+          const fgColor = findClosestColor(lightPixel.r, lightPixel.g, lightPixel.b);
+
+          // Choose character based on enhanced brightness
+          const charIndex = Math.floor(avgBrightness * (chars.length - 1));
+          const char = chars[charIndex];
+
+          row.push({ char, fg: fgColor, bg: bgColor });
+        }
+        ansiData.push(row);
+      }
+
+      return ansiData;
+    }
+
+    function convertImageToHalfBlock(intermediateCanvas, width, height) {
+      // Half-block mode: each character row represents 2 pixel rows
+      // Use ▀ (upper half) with bg=top, fg=bottom
+      // Use ▄ (lower half) with fg=top, bg=bottom
+
+      const ansiData = [];
+      const pixelHeight = height * 2; // Double vertical resolution
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = pixelHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(intermediateCanvas, 0, 0, width, pixelHeight);
+
+      // Get ORIGINAL colors
+      const originalImageData = ctx.getImageData(0, 0, width, pixelHeight);
+      const originalData = new Uint8ClampedArray(originalImageData.data);
+
+      // Create enhanced version for brightness
+      const enhancedImageData = ctx.getImageData(0, 0, width, pixelHeight);
+      liftShadows(enhancedImageData, 40);
+      normalizeHistogram(enhancedImageData);
+      applyGammaCorrection(enhancedImageData, 0.35);
+
+      // Process two rows at a time
+      for (let y = 0; y < height; y++) {
+        const row = [];
+        for (let x = 0; x < width; x++) {
+          // Top pixel
+          const topI = (y * 2 * width + x) * 4;
+          const topA = originalData[topI + 3];
+          const topR = originalData[topI];
+          const topG = originalData[topI + 1];
+          const topB = originalData[topI + 2];
+          const topEnhR = enhancedImageData.data[topI];
+          const topEnhG = enhancedImageData.data[topI + 1];
+          const topEnhB = enhancedImageData.data[topI + 2];
+          const topBrightness = (topEnhR * 0.299 + topEnhG * 0.587 + topEnhB * 0.114) / 255;
+
+          // Bottom pixel
+          const bottomI = ((y * 2 + 1) * width + x) * 4;
+          const bottomA = originalData[bottomI + 3];
+          const bottomR = originalData[bottomI];
+          const bottomG = originalData[bottomI + 1];
+          const bottomB = originalData[bottomI + 2];
+          const bottomEnhR = enhancedImageData.data[bottomI];
+          const bottomEnhG = enhancedImageData.data[bottomI + 1];
+          const bottomEnhB = enhancedImageData.data[bottomI + 2];
+          const bottomBrightness = (bottomEnhR * 0.299 + bottomEnhG * 0.587 + bottomEnhB * 0.114) / 255;
+
+          // Handle transparency
+          if (topA < 128 && bottomA < 128) {
+            row.push({ char: ' ', fg: TRANSPARENT_COLOR, bg: TRANSPARENT_COLOR });
+            continue;
+          }
+
+          // Map colors
+          const topColor = topA >= 128 ? findClosestColor(topR, topG, topB) : TRANSPARENT_COLOR;
+          const bottomColor = bottomA >= 128 ? findClosestColor(bottomR, bottomG, bottomB) : TRANSPARENT_COLOR;
+
+          // Choose character based on which is brighter
+          let char, fg, bg;
+          if (topBrightness > bottomBrightness) {
+            // Top is brighter - use ▀ (upper half block)
+            char = '▀';
+            fg = topColor;
+            bg = bottomColor;
+          } else {
+            // Bottom is brighter - use ▄ (lower half block)
+            char = '▄';
+            fg = bottomColor;
+            bg = topColor;
+          }
+
+          row.push({ char, fg, bg });
+        }
+        ansiData.push(row);
+      }
+
+      return ansiData;
+    }
+
+    function convertTextToHalfBlock(intermediateCanvas, width, height, fgColor, bgColor) {
+      // Half-block mode for text: similar to image half-block but uses user's selected colors
+      const ansiData = [];
+      const pixelHeight = height * 2; // Double vertical resolution
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = pixelHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(intermediateCanvas, 0, 0, width, pixelHeight);
+
+      const imageData = ctx.getImageData(0, 0, width, pixelHeight);
+      const data = imageData.data;
+
+      // Process two rows at a time
+      for (let y = 0; y < height; y++) {
+        const row = [];
+        for (let x = 0; x < width; x++) {
+          // Top pixel
+          const topI = (y * 2 * width + x) * 4;
+          const topA = data[topI + 3];
+          const topR = data[topI];
+          const topG = data[topI + 1];
+          const topB = data[topI + 2];
+          const topBrightness = (topR * 0.299 + topG * 0.587 + topB * 0.114) / 255;
+
+          // Bottom pixel
+          const bottomI = ((y * 2 + 1) * width + x) * 4;
+          const bottomA = data[bottomI + 3];
+          const bottomR = data[bottomI];
+          const bottomG = data[bottomI + 1];
+          const bottomB = data[bottomI + 2];
+          const bottomBrightness = (bottomR * 0.299 + bottomG * 0.587 + bottomB * 0.114) / 255;
+
+          // Handle transparency
+          if (topA < 128 && bottomA < 128) {
+            row.push({ char: ' ', fg: TRANSPARENT_COLOR, bg: TRANSPARENT_COLOR });
+            continue;
+          }
+
+          // Detect colors from canvas for rainbow mode
+          const isTopWhite = topR > 240 && topG > 240 && topB > 240;
+          const isBottomWhite = bottomR > 240 && bottomG > 240 && bottomB > 240;
+
+          let topColor = fgColor;
+          let bottomColor = fgColor;
+
+          // If pixel is not white, detect color (rainbow mode)
+          if (!isTopWhite && topA >= 128 && fgColor !== TRANSPARENT_COLOR) {
+            topColor = findClosestColor(topR, topG, topB);
+          }
+          if (!isBottomWhite && bottomA >= 128 && fgColor !== TRANSPARENT_COLOR) {
+            bottomColor = findClosestColor(bottomR, bottomG, bottomB);
+          }
+
+          // Choose character based on which is brighter
+          let char, fg, bg;
+          if (topBrightness > bottomBrightness) {
+            // Top is brighter - use ▀ (upper half block)
+            char = '▀';
+            fg = topColor;
+            bg = (bottomA >= 128) ? bottomColor : bgColor;
+          } else {
+            // Bottom is brighter - use ▄ (lower half block)
+            char = '▄';
+            fg = bottomColor;
+            bg = (topA >= 128) ? topColor : bgColor;
+          }
+
+          row.push({ char, fg, bg });
+        }
+        ansiData.push(row);
+      }
+
+      return ansiData;
+    }
+
+    function liftShadows(imageData, amount) {
+      const data = imageData.data;
+
+      // Apply a curves adjustment that lifts shadows more than highlights
+      // Uses a power curve where shadows get boosted significantly
+      for (let i = 0; i < data.length; i += 4) {
+        const a = data[i + 3];
+        if (a === 0) continue; // Skip transparent pixels
+
+        for (let c = 0; c < 3; c++) { // R, G, B channels
+          const normalized = data[i + c] / 255;
+          // Apply shadow lift curve: darker pixels get boosted more
+          const lifted = normalized + (amount / 100) * (1 - normalized) * Math.pow(1 - normalized, 2);
+          data[i + c] = Math.min(255, lifted * 255);
+        }
+      }
+    }
+
+    function normalizeHistogram(imageData) {
+      const data = imageData.data;
+      let minR = 255, minG = 255, minB = 255;
+      let maxR = 0, maxG = 0, maxB = 0;
+
+      // Find min/max for each channel
+      for (let i = 0; i < data.length; i += 4) {
+        const a = data[i + 3];
+        if (a === 0) continue; // Skip transparent pixels
+
+        minR = Math.min(minR, data[i]);
+        maxR = Math.max(maxR, data[i]);
+        minG = Math.min(minG, data[i + 1]);
+        maxG = Math.max(maxG, data[i + 1]);
+        minB = Math.min(minB, data[i + 2]);
+        maxB = Math.max(maxB, data[i + 2]);
+      }
+
+      // Calculate ranges
+      const rangeR = maxR - minR;
+      const rangeG = maxG - minG;
+      const rangeB = maxB - minB;
+
+      // Stretch each channel to full 0-255 range
+      if (rangeR > 0 || rangeG > 0 || rangeB > 0) {
+        for (let i = 0; i < data.length; i += 4) {
+          const a = data[i + 3];
+          if (a === 0) continue; // Skip transparent pixels
+
+          if (rangeR > 0) {
+            data[i] = ((data[i] - minR) / rangeR) * 255;
+          }
+          if (rangeG > 0) {
+            data[i + 1] = ((data[i + 1] - minG) / rangeG) * 255;
+          }
+          if (rangeB > 0) {
+            data[i + 2] = ((data[i + 2] - minB) / rangeB) * 255;
+          }
+        }
+      }
+    }
+
+    function applyGammaCorrection(imageData, gamma) {
+      const data = imageData.data;
+
+      // Pre-compute gamma lookup table for performance
+      const gammaLUT = new Array(256);
+      for (let i = 0; i < 256; i++) {
+        gammaLUT[i] = Math.pow(i / 255, gamma) * 255;
+      }
+
+      // Apply gamma correction to each RGB channel
+      for (let i = 0; i < data.length; i += 4) {
+        const a = data[i + 3];
+        if (a === 0) continue; // Skip transparent pixels
+
+        data[i] = gammaLUT[Math.floor(data[i])];
+        data[i + 1] = gammaLUT[Math.floor(data[i + 1])];
+        data[i + 2] = gammaLUT[Math.floor(data[i + 2])];
+      }
+    }
+
+    function applyImageAdjustments(imageData, adjustments) {
+      const data = imageData.data;
+      const { hue, saturation, contrast, brightness } = adjustments;
+
+      for (let i = 0; i < data.length; i += 4) {
+        let r = data[i];
+        let g = data[i + 1];
+        let b = data[i + 2];
+
+        // Convert to HSL
+        let hsl = rgbToHsl(r, g, b);
+
+        // Apply hue shift
+        if (hue !== 0) {
+          hsl[0] = (hsl[0] + hue / 360) % 1;
+          if (hsl[0] < 0) hsl[0] += 1;
+        }
+
+        // Apply saturation
+        if (saturation !== 0) {
+          hsl[1] = Math.max(0, Math.min(1, hsl[1] + saturation / 100));
+        }
+
+        // Convert back to RGB
+        const rgb = hslToRgb(hsl[0], hsl[1], hsl[2]);
+        r = rgb[0];
+        g = rgb[1];
+        b = rgb[2];
+
+        // Apply contrast
+        if (contrast !== 0) {
+          const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+          r = Math.max(0, Math.min(255, factor * (r - 128) + 128));
+          g = Math.max(0, Math.min(255, factor * (g - 128) + 128));
+          b = Math.max(0, Math.min(255, factor * (b - 128) + 128));
+        }
+
+        // Apply brightness
+        if (brightness !== 0) {
+          r = Math.max(0, Math.min(255, r + brightness * 2.55));
+          g = Math.max(0, Math.min(255, g + brightness * 2.55));
+          b = Math.max(0, Math.min(255, b + brightness * 2.55));
+        }
+
+        data[i] = r;
+        data[i + 1] = g;
+        data[i + 2] = b;
+      }
+    }
+
+    function rgbToHsl(r, g, b) {
+      r /= 255;
+      g /= 255;
+      b /= 255;
+
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      let h, s, l = (max + min) / 2;
+
+      if (max === min) {
+        h = s = 0;
+      } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+        switch (max) {
+          case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+          case g: h = ((b - r) / d + 2) / 6; break;
+          case b: h = ((r - g) / d + 4) / 6; break;
+        }
+      }
+
+      return [h, s, l];
+    }
+
+    function hslToRgb(h, s, l) {
+      let r, g, b;
+
+      if (s === 0) {
+        r = g = b = l;
+      } else {
+        const hue2rgb = (p, q, t) => {
+          if (t < 0) t += 1;
+          if (t > 1) t -= 1;
+          if (t < 1/6) return p + (q - p) * 6 * t;
+          if (t < 1/2) return q;
+          if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+          return p;
+        };
+
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+
+        r = hue2rgb(p, q, h + 1/3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1/3);
+      }
+
+      return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+    }
+
+    function findClosestColor(r, g, b) {
+      let minDist = Infinity;
+      let closestIndex = 0;
+
+      ANSI_COLORS.forEach((color, index) => {
+        const cr = parseInt(color.substr(1, 2), 16);
+        const cg = parseInt(color.substr(3, 2), 16);
+        const cb = parseInt(color.substr(5, 2), 16);
+
+        const dist = Math.sqrt(
+          Math.pow(r - cr, 2) +
+          Math.pow(g - cg, 2) +
+          Math.pow(b - cb, 2)
+        );
+
+        if (dist < minDist) {
+          minDist = dist;
+          closestIndex = index;
+        }
+      });
+
+      return closestIndex;
+    }
+
+    // ============================================================
+    // ANSI FILE LOADING
+    // ============================================================
+
+    function handleAnsiUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target.result;
+
+        // Try to detect row width from content
+        let detectedWidth = 80; // Default
+        const lines = content.split('\n');
+        if (lines.length > 0) {
+          // Find the most common line length (ignoring ANSI codes)
+          const lineLengths = lines.map(line => {
+            // Remove ANSI escape codes for length calculation
+            return line.replace(/\x1b\[[0-9;]*m/g, '').length;
+          }).filter(len => len > 0);
+
+          if (lineLengths.length > 0) {
+            // Use the maximum line length as a starting point
+            detectedWidth = Math.max(...lineLengths);
+          }
+        }
+
+        // Update UI slider
+        document.getElementById('ansiRowWidth').value = detectedWidth;
+        document.getElementById('ansiRowWidthValue').textContent = detectedWidth;
+
+        // Parse ANSI file
+        const ansiData = parseAnsiFile(content, detectedWidth);
+
+        let charMode = 'block';
+        if (document.getElementById('asciiModeBtn').classList.contains('active')) charMode = 'ascii';
+        if (document.getElementById('halfBlockModeBtn').classList.contains('active')) charMode = 'halfblock';
+
+        const width = parseInt(document.getElementById('layerWidth').value);
+        const height = parseInt(document.getElementById('layerHeight').value);
+
+        addLayer('ansi', ansiData, ansiData[0]?.length || detectedWidth, ansiData.length, charMode, null, content, detectedWidth);
+      };
+      reader.readAsText(file);
+
+      e.target.value = '';
+    }
+
+    function parseAnsiFile(content, rowWidth) {
+      const ansiData = [];
+      let currentRow = [];
+      let currentFg = 7; // Default white
+      let currentBg = 0; // Default black
+      let x = 0;
+
+      // Parse character by character
+      let i = 0;
+      while (i < content.length) {
+        // Check for ANSI escape sequence
+        if (content[i] === '\x1b' && content[i + 1] === '[') {
+          // Find the end of the escape sequence (ends with a letter)
+          let j = i + 2;
+          while (j < content.length && !/[a-zA-Z]/.test(content[j])) {
+            j++;
+          }
+          const escapeCode = content.substring(i + 2, j);
+          const command = content[j];
+
+          // Parse color codes
+          if (command === 'm') {
+            const codes = escapeCode.split(';').map(c => parseInt(c) || 0);
+            codes.forEach(code => {
+              if (code === 0) {
+                // Reset
+                currentFg = 7;
+                currentBg = 0;
+              } else if (code >= 30 && code <= 37) {
+                // Foreground color
+                currentFg = code - 30;
+              } else if (code >= 40 && code <= 47) {
+                // Background color
+                currentBg = code - 40;
+              } else if (code >= 90 && code <= 97) {
+                // Bright foreground color
+                currentFg = code - 90 + 8;
+              } else if (code >= 100 && code <= 107) {
+                // Bright background color
+                currentBg = code - 100 + 8;
+              }
+            });
+          }
+
+          i = j + 1;
+          continue;
+        }
+
+        // Check for newline
+        if (content[i] === '\n' || content[i] === '\r') {
+          // Pad row to rowWidth with spaces
+          while (currentRow.length < rowWidth) {
+            currentRow.push({ char: ' ', fg: currentBg, bg: currentBg });
+          }
+          ansiData.push(currentRow);
+          currentRow = [];
+          x = 0;
+          i++;
+          if (content[i] === '\n' && content[i - 1] === '\r') i++; // Skip \r\n
+          continue;
+        }
+
+        // Regular character
+        const char = content[i];
+        currentRow.push({ char, fg: currentFg, bg: currentBg });
+        x++;
+
+        // Auto-wrap at rowWidth
+        if (x >= rowWidth) {
+          ansiData.push(currentRow);
+          currentRow = [];
+          x = 0;
+        }
+
+        i++;
+      }
+
+      // Add final row if not empty
+      if (currentRow.length > 0) {
+        while (currentRow.length < rowWidth) {
+          currentRow.push({ char: ' ', fg: currentBg, bg: currentBg });
+        }
+        ansiData.push(currentRow);
+      }
+
+      // Ensure at least one row
+      if (ansiData.length === 0) {
+        ansiData.push([{ char: ' ', fg: 7, bg: 0 }]);
+      }
+
+      return ansiData;
+    }
+
+    function updateSelectedLayerAnsiRowWidth(width) {
+      const layer = getSelectedLayer();
+      if (!layer || layer.type !== 'ansi') return;
+
+      // Re-parse with new width
+      layer.ansiRowWidth = width;
+      layer.ansiData = parseAnsiFile(layer.sourceAnsiContent, width);
+      layer.width = layer.ansiData[0]?.length || width;
+      layer.height = layer.ansiData.length;
+
+      // Update UI
+      document.getElementById('layerWidth').value = layer.width;
+      document.getElementById('layerWidthValue').textContent = layer.width;
+      document.getElementById('layerHeight').value = layer.height;
+      document.getElementById('layerHeightValue').textContent = layer.height;
+
+      renderPreview();
+    }
+
+    // ============================================================
+    // CUSTOM FONT LOADING
+    // ============================================================
+
+    function handleCustomFontUpload(e) {
+      const file = e.target.files[0];
+      if (!file) {
+        // User cancelled - reset dropdown
+        document.getElementById('fontFamily').value = 'monospace';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const fontName = 'CustomFont_' + Date.now();
+        const fontFace = new FontFace(fontName, `url(${event.target.result})`);
+
+        fontFace.load().then((loadedFont) => {
+          document.fonts.add(loadedFont);
+
+          // Update UI to show custom font loaded
+          document.getElementById('customFontName').textContent = `Loaded: ${file.name}`;
+          document.getElementById('customFontName').style.display = 'block';
+
+          // Update selected layer
+          updateSelectedLayerFont('family', fontName);
+
+          alert(`Custom font "${file.name}" loaded successfully!`);
+        }).catch((error) => {
+          console.error('Font loading failed:', error);
+          alert('Failed to load font file. Make sure it\'s a valid .ttf, .otf, .woff, or .woff2 file.');
+          document.getElementById('fontFamily').value = 'monospace';
+        });
+      };
+      reader.readAsDataURL(file);
+
+      e.target.value = '';
+    }
+
+    // ============================================================
+    // TEXT LAYER
+    // ============================================================
+
+    function addTextLayer() {
+      const text = document.getElementById('textContent').value || 'Sample Text';
+      const fontSize = parseInt(document.getElementById('fontSize').value);
+      const fontFamilySelect = document.getElementById('fontFamily');
+      const fontFamily = fontFamilySelect.value === 'custom' ? fontFamilySelect.value : fontFamilySelect.value;
+      const fontBold = document.getElementById('fontBold').checked;
+      const fontItalic = document.getElementById('fontItalic').checked;
+      const fontUnderline = document.getElementById('fontUnderline').checked;
+      let charMode = 'block';
+      if (document.getElementById('asciiModeBtn').classList.contains('active')) charMode = 'ascii';
+      if (document.getElementById('halfBlockModeBtn').classList.contains('active')) charMode = 'halfblock';
+
+      const fgPalette = document.getElementById('fgColorPalette');
+      const fgSelected = Array.from(fgPalette.querySelectorAll('.color-swatch')).findIndex(s => s.classList.contains('selected'));
+      const fgColor = fgSelected >= 0 ? (fgPalette.querySelector('.transparent') ? fgSelected - 1 : fgSelected) : 15;
+
+      // Create temporary layer to render text and calculate natural dimensions
+      const tempLayer = {
+        text,
+        fontSize,
+        fontFamily,
+        fontBold,
+        fontItalic,
+        fontUnderline,
+        fgColor,
+        outline: document.getElementById('textOutline').checked,
+        outlineColor: 0,
+        outlineWidth: parseInt(document.getElementById('outlineWidth').value),
+        rainbowFill: document.getElementById('rainbowFill').checked,
+        rainbowOutline: document.getElementById('rainbowOutline').checked,
+        gradientAngle: parseInt(document.getElementById('gradientAngle').value),
+        textEffect: document.getElementById('textEffect').value,
+        effectIntensity: parseInt(document.getElementById('effectIntensity').value),
+        effectPhase: parseInt(document.getElementById('effectPhase').value)
+      };
+
+      // Render text to get natural canvas size
+      const textCanvas = renderTextToCanvas(tempLayer);
+
+      // Calculate character dimensions from canvas
+      // Half-block mode doubles vertical resolution
+      const charHeightPixels = (charMode === 'halfblock') ? CHAR_HEIGHT * 2 : CHAR_HEIGHT;
+      const width = Math.ceil(textCanvas.width / CHAR_WIDTH);
+      const height = Math.ceil(textCanvas.height / charHeightPixels);
+
+      // Update UI to reflect calculated dimensions
+      document.getElementById('layerWidth').value = width;
+      document.getElementById('layerWidthValue').textContent = width;
+      document.getElementById('layerHeight').value = height;
+      document.getElementById('layerHeightValue').textContent = height;
+
+      const layer = {
+        id: state.nextLayerId++,
+        type: 'text',
+        x: 0,
+        y: 0,
+        width,
+        height,
+        rotation: 0,
+        charMode,
+        text,
+        fontSize,
+        fontFamily,
+        fontBold,
+        fontItalic,
+        fontUnderline,
+        fgColor: fgColor === -1 ? TRANSPARENT_COLOR : fgColor,
+        outline: document.getElementById('textOutline').checked,
+        outlineColor: 0,
+        outlineWidth: parseInt(document.getElementById('outlineWidth').value),
+        rainbowFill: document.getElementById('rainbowFill').checked,
+        rainbowOutline: document.getElementById('rainbowOutline').checked,
+        gradientAngle: parseInt(document.getElementById('gradientAngle').value),
+        textEffect: document.getElementById('textEffect').value,
+        effectIntensity: parseInt(document.getElementById('effectIntensity').value),
+        effectPhase: parseInt(document.getElementById('effectPhase').value),
+        ansiData: [],
+        imageAdjustments: null
+      };
+
+      regenerateLayerANSI(layer);
+      state.layers.push(layer);
+      state.selectedLayerId = layer.id;
+      updateLayersList();
+      updateControlsForSelectedLayer();
+      renderPreview();
+    }
+
+    // ============================================================
+    // LAYER MANAGEMENT
+    // ============================================================
+
+    function addLayer(type, ansiData, width, height, charMode, sourceImage, sourceAnsiContent, ansiRowWidth) {
+      const layer = {
+        id: state.nextLayerId++,
+        type,
+        x: 0,
+        y: 0,
+        width,
+        height,
+        rotation: 0,
+        charMode,
+        ansiData
+      };
+
+      if (type === 'image') {
+        layer.sourceImage = sourceImage;
+        layer.imageAdjustments = { hue: 0, saturation: 0, contrast: 0, brightness: 0 };
+      } else if (type === 'ansi') {
+        layer.sourceAnsiContent = sourceAnsiContent;
+        layer.ansiRowWidth = ansiRowWidth;
+      }
+
+      state.layers.push(layer);
+      state.selectedLayerId = layer.id;
+      updateLayersList();
+      updateControlsForSelectedLayer();
+      renderPreview();
+    }
+
+    function deleteLayer(id) {
+      state.layers = state.layers.filter(l => l.id !== id);
+      if (state.selectedLayerId === id) {
+        state.selectedLayerId = null;
+      }
+      updateLayersList();
+      updateControlsForSelectedLayer();
+      renderPreview();
+    }
+
+    function moveLayerUp(id) {
+      const index = state.layers.findIndex(l => l.id === id);
+      if (index < state.layers.length - 1) {
+        [state.layers[index], state.layers[index + 1]] = [state.layers[index + 1], state.layers[index]];
+        updateLayersList();
+        renderPreview();
+      }
+    }
+
+    function moveLayerDown(id) {
+      const index = state.layers.findIndex(l => l.id === id);
+      if (index > 0) {
+        [state.layers[index], state.layers[index - 1]] = [state.layers[index - 1], state.layers[index]];
+        updateLayersList();
+        renderPreview();
+      }
+    }
+
+    function selectLayer(id) {
+      state.selectedLayerId = id;
+      updateLayersList();
+      updateControlsForSelectedLayer();
+      renderPreview();
+    }
+
+    function getSelectedLayer() {
+      return state.layers.find(l => l.id === state.selectedLayerId);
+    }
+
+    function updateControlsForSelectedLayer() {
+      const layer = getSelectedLayer();
+
+      if (!layer) {
+        updateControlsVisibility();
+        return;
+      }
+
+      document.getElementById('layerWidth').value = layer.width;
+      document.getElementById('layerWidthValue').textContent = layer.width;
+      document.getElementById('layerHeight').value = layer.height;
+      document.getElementById('layerHeightValue').textContent = layer.height;
+      document.getElementById('layerRotation').value = layer.rotation || 0;
+      document.getElementById('layerRotationValue').textContent = layer.rotation || 0;
+
+      document.getElementById('blockModeBtn').classList.toggle('active', layer.charMode === 'block');
+      document.getElementById('asciiModeBtn').classList.toggle('active', layer.charMode === 'ascii');
+      document.getElementById('halfBlockModeBtn').classList.toggle('active', layer.charMode === 'halfblock');
+
+      if (layer.type === 'image' && layer.imageAdjustments) {
+        document.getElementById('imageHue').value = layer.imageAdjustments.hue || 0;
+        document.getElementById('imageHueValue').textContent = layer.imageAdjustments.hue || 0;
+        document.getElementById('imageSaturation').value = layer.imageAdjustments.saturation || 0;
+        document.getElementById('imageSaturationValue').textContent = layer.imageAdjustments.saturation || 0;
+        document.getElementById('imageContrast').value = layer.imageAdjustments.contrast || 0;
+        document.getElementById('imageContrastValue').textContent = layer.imageAdjustments.contrast || 0;
+        document.getElementById('imageBrightness').value = layer.imageAdjustments.brightness || 0;
+        document.getElementById('imageBrightnessValue').textContent = layer.imageAdjustments.brightness || 0;
+      }
+
+      if (layer.type === 'ansi') {
+        document.getElementById('ansiRowWidth').value = layer.ansiRowWidth || 80;
+        document.getElementById('ansiRowWidthValue').textContent = layer.ansiRowWidth || 80;
+      }
+
+      if (layer.type === 'text') {
+        document.getElementById('textContent').value = layer.text || '';
+        // Set font family - if it's a custom loaded font, it will still be in fonts list
+        const fontSelect = document.getElementById('fontFamily');
+        const fontExists = Array.from(fontSelect.options).some(opt => opt.value === layer.fontFamily);
+        fontSelect.value = fontExists ? layer.fontFamily : 'monospace';
+
+        document.getElementById('fontSize').value = layer.fontSize || 24;
+        document.getElementById('fontSizeValue').textContent = layer.fontSize || 24;
+        document.getElementById('fontBold').checked = layer.fontBold || false;
+        document.getElementById('fontItalic').checked = layer.fontItalic || false;
+        document.getElementById('fontUnderline').checked = layer.fontUnderline || false;
+        document.getElementById('textOutline').checked = layer.outline || false;
+        document.getElementById('outlineWidth').value = layer.outlineWidth || 8;
+        document.getElementById('outlineWidthValue').textContent = layer.outlineWidth || 8;
+        document.getElementById('rainbowFill').checked = layer.rainbowFill || false;
+        document.getElementById('rainbowOutline').checked = layer.rainbowOutline || false;
+        document.getElementById('gradientAngle').value = layer.gradientAngle || 0;
+        document.getElementById('gradientAngleValue').textContent = (layer.gradientAngle || 0) + '°';
+        document.getElementById('textEffect').value = layer.textEffect || 'none';
+        document.getElementById('effectIntensity').value = layer.effectIntensity || 5;
+        document.getElementById('effectIntensityValue').textContent = layer.effectIntensity || 5;
+
+        updateColorPaletteSelection('fgColorPalette', layer.fgColor !== undefined ? layer.fgColor : 15);
+        updateColorPaletteSelection('outlineColorPalette', layer.outlineColor !== undefined ? layer.outlineColor : 0);
+      }
+
+      updateControlsVisibility();
+    }
+
+    function updateControlsVisibility() {
+      const layer = getSelectedLayer();
+      const isTextLayer = layer && layer.type === 'text';
+      const isImageLayer = layer && layer.type === 'image';
+      const isAnsiLayer = layer && layer.type === 'ansi';
+
+      document.querySelectorAll('.text-only-control').forEach(el => {
+        el.classList.toggle('active', isTextLayer);
+      });
+
+      document.querySelectorAll('.image-only-control').forEach(el => {
+        el.classList.toggle('active', isImageLayer);
+      });
+
+      document.querySelectorAll('.ansi-only-control').forEach(el => {
+        el.classList.toggle('active', isAnsiLayer);
+      });
+    }
+
+    function updateLayersList() {
+      const list = document.getElementById('layersList');
+      list.innerHTML = '';
+
+      if (state.layers.length === 0) {
+        list.innerHTML = '<p style="color: var(--color-text-secondary); text-align: center;">No layers yet</p>';
+        return;
+      }
+
+      // Reverse order: bottom layers at bottom of list
+      const reversedLayers = [...state.layers].reverse();
+
+      reversedLayers.forEach((layer) => {
+        const item = document.createElement('div');
+        item.className = 'layer-item';
+        if (layer.id === state.selectedLayerId) {
+          item.classList.add('selected');
+        }
+        if (layer.visible === false) {
+          item.style.opacity = '0.5';
+        }
+
+        const info = document.createElement('div');
+        info.textContent = `Layer ${layer.id} (${layer.type}) - ${layer.width}x${layer.height}`;
+
+        const controls = document.createElement('div');
+        controls.className = 'layer-controls';
+
+        // First row
+        const row1 = document.createElement('div');
+        row1.className = 'layer-controls-row';
+
+        const visBtn = document.createElement('button');
+        visBtn.textContent = layer.visible === false ? '👁️' : '👁';
+        visBtn.title = layer.visible === false ? 'Show layer' : 'Hide layer';
+        visBtn.onclick = (e) => {
+          e.stopPropagation();
+          toggleLayerVisibility(layer.id);
+        };
+
+        const dupBtn = document.createElement('button');
+        dupBtn.textContent = '⎘';
+        dupBtn.title = 'Duplicate layer';
+        dupBtn.onclick = (e) => {
+          e.stopPropagation();
+          duplicateLayer(layer.id);
+        };
+
+        const centerBtn = document.createElement('button');
+        centerBtn.textContent = '⊙';
+        centerBtn.title = 'Center layer';
+        centerBtn.onclick = (e) => {
+          e.stopPropagation();
+          centerLayer(layer.id);
+        };
+
+        row1.appendChild(visBtn);
+        row1.appendChild(dupBtn);
+        row1.appendChild(centerBtn);
+
+        // Second row
+        const row2 = document.createElement('div');
+        row2.className = 'layer-controls-row';
+
+        const upBtn = document.createElement('button');
+        upBtn.textContent = '↑';
+        upBtn.title = 'Move up';
+        upBtn.onclick = (e) => {
+          e.stopPropagation();
+          moveLayerUp(layer.id);
+        };
+
+        const downBtn = document.createElement('button');
+        downBtn.textContent = '↓';
+        downBtn.title = 'Move down';
+        downBtn.onclick = (e) => {
+          e.stopPropagation();
+          moveLayerDown(layer.id);
+        };
+
+        const delBtn = document.createElement('button');
+        delBtn.textContent = '×';
+        delBtn.title = 'Delete';
+        delBtn.onclick = (e) => {
+          e.stopPropagation();
+          deleteLayer(layer.id);
+        };
+
+        row2.appendChild(upBtn);
+        row2.appendChild(downBtn);
+        row2.appendChild(delBtn);
+
+        controls.appendChild(row1);
+        controls.appendChild(row2);
+
+        item.appendChild(info);
+        item.appendChild(controls);
+        item.onclick = () => selectLayer(layer.id);
+
+        list.appendChild(item);
+      });
+    }
+
+    function toggleLayerVisibility(id) {
+      const layer = state.layers.find(l => l.id === id);
+      if (!layer) return;
+      layer.visible = layer.visible === false ? true : false;
+      updateLayersList();
+      renderPreview();
+    }
+
+    function duplicateLayer(id) {
+      const layer = state.layers.find(l => l.id === id);
+      if (!layer) return;
+
+      const newLayer = JSON.parse(JSON.stringify(layer));
+      newLayer.id = state.nextLayerId++;
+      newLayer.x = layer.x + 20;
+      newLayer.y = layer.y + 20;
+
+      // Deep copy source image if it exists
+      if (layer.type === 'image' && layer.sourceImage) {
+        newLayer.sourceImage = layer.sourceImage;
+      }
+
+      // Keep ANSI source content if it exists
+      if (layer.type === 'ansi' && layer.sourceAnsiContent) {
+        newLayer.sourceAnsiContent = layer.sourceAnsiContent;
+      }
+
+      state.layers.push(newLayer);
+      state.selectedLayerId = newLayer.id;
+      updateLayersList();
+      updateControlsForSelectedLayer();
+      renderPreview();
+    }
+
+    function centerLayer(id) {
+      const layer = state.layers.find(l => l.id === id);
+      if (!layer) return;
+
+      // Center layer on canvas
+      const canvasCenterX = (state.canvasWidth / 2) * CHAR_WIDTH;
+      const canvasCenterY = (state.canvasHeight / 2) * CHAR_HEIGHT;
+      const layerCenterX = (layer.width / 2) * CHAR_WIDTH;
+      const layerCenterY = (layer.height / 2) * CHAR_HEIGHT;
+
+      layer.x = canvasCenterX - layerCenterX;
+      layer.y = canvasCenterY - layerCenterY;
+
+      renderPreview();
+    }
+
+    // ============================================================
+    // PREVIEW RENDERING
+    // ============================================================
+
+    function renderPreview() {
+      const preview = document.getElementById('ansiPreview');
+      preview.innerHTML = '';
+      preview.style.background = '#000'; // Always black background for ANSI preview
+
+      // Create canvas-sized grid
+      const width = state.canvasWidth;
+      const height = state.canvasHeight;
+
+      // Generate background grid based on type
+      const bgGrid = generateBackgroundGrid(width, height);
+
+      // Create empty layer grid
+      const layerGrid = [];
+      for (let y = 0; y < height; y++) {
+        const row = [];
+        for (let x = 0; x < width; x++) {
+          row.push({ char: ' ', fg: TRANSPARENT_COLOR, bg: TRANSPARENT_COLOR });
+        }
+        layerGrid.push(row);
+      }
+
+      // Composite layers onto grid
+      state.layers.forEach(layer => {
+        if (layer.visible === false) return; // Skip hidden layers
+
+        const charX = Math.round(layer.x / CHAR_WIDTH);
+        const charY = Math.round(layer.y / CHAR_HEIGHT);
+
+        layer.ansiData.forEach((row, ly) => {
+          row.forEach((cell, lx) => {
+            const targetY = charY + ly;
+            const targetX = charX + lx;
+
+            if (targetY >= 0 && targetY < height && targetX >= 0 && targetX < width) {
+              if (cell.fg !== TRANSPARENT_COLOR || cell.bg !== TRANSPARENT_COLOR) {
+                const existingCell = layerGrid[targetY][targetX];
+                layerGrid[targetY][targetX] = {
+                  char: cell.char !== ' ' ? cell.char : existingCell.char,
+                  fg: cell.fg !== TRANSPARENT_COLOR ? cell.fg : existingCell.fg,
+                  bg: cell.bg !== TRANSPARENT_COLOR ? cell.bg : existingCell.bg
+                };
+              }
+            }
+          });
+        });
+      });
+
+      // Render combined grid
+      let html = '';
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const layerCell = layerGrid[y][x];
+          const bgCell = bgGrid[y][x];
+
+          // Use layer cell if it has content, otherwise use background
+          let char = layerCell.char !== ' ' ? layerCell.char : bgCell.char;
+          let fg = layerCell.fg !== TRANSPARENT_COLOR ? layerCell.fg : bgCell.fg;
+          let bg = layerCell.bg !== TRANSPARENT_COLOR ? layerCell.bg : bgCell.bg;
+
+          const fgColor = fg === TRANSPARENT_COLOR ? 'transparent' : ANSI_COLORS[fg];
+          const bgColor = bg === TRANSPARENT_COLOR ? 'transparent' : ANSI_COLORS[bg];
+          html += `<span style="color: ${fgColor}; background: ${bgColor};">${char}</span>`;
+        }
+        html += '\n';
+      }
+
+      preview.innerHTML = html;
+    }
+
+    function generateBackgroundGrid(width, height) {
+      const grid = [];
+
+      if (state.canvasBgType === 'transparent') {
+        // Transparent - use spaces
+        for (let y = 0; y < height; y++) {
+          const row = [];
+          for (let x = 0; x < width; x++) {
+            row.push({ char: ' ', fg: 7, bg: 0 });
+          }
+          grid.push(row);
+        }
+      } else if (state.canvasBgType === 'gradient') {
+        // ANSI gradient - diagonal gradient using two colors
+        const color1 = state.canvasBgColor;
+        const color2 = (state.canvasBgColor + 8) % 16;
+
+        for (let y = 0; y < height; y++) {
+          const row = [];
+          for (let x = 0; x < width; x++) {
+            // Calculate gradient position (diagonal)
+            const gradientPos = (x + y) / (width + height);
+            const useColor2 = gradientPos > 0.5;
+            const color = useColor2 ? color2 : color1;
+
+            // Use gradient characters for smooth transition
+            const transitionZone = Math.abs(gradientPos - 0.5) < 0.2;
+            let char = ' ';
+            if (transitionZone) {
+              const intensity = (gradientPos - 0.3) / 0.4; // 0 to 1 in transition zone
+              const charIndex = Math.floor(intensity * (BLOCK_CHARS.length - 1));
+              char = BLOCK_CHARS[charIndex];
+            }
+
+            row.push({
+              char,
+              fg: useColor2 ? color1 : color2,
+              bg: color
+            });
+          }
+          grid.push(row);
+        }
+      } else {
+        // Solid color
+        for (let y = 0; y < height; y++) {
+          const row = [];
+          for (let x = 0; x < width; x++) {
+            row.push({ char: ' ', fg: state.canvasBgColor, bg: state.canvasBgColor });
+          }
+          grid.push(row);
+        }
+      }
+
+      return grid;
+    }
+
+    function applyZoom() {
+      const preview = document.getElementById('ansiPreview');
+      preview.style.transform = `scale(${state.zoom})`;
+      preview.style.transformOrigin = 'top left';
+    }
+
+    // ============================================================
+    // MOUSE INTERACTIONS
+    // ============================================================
+
+    function handlePreviewMouseDown(e) {
+      if (!state.selectedLayerId) return;
+
+      const layer = state.layers.find(l => l.id === state.selectedLayerId);
+      if (!layer) return;
+
+      state.dragState = {
+        layerId: layer.id,
+        startX: e.clientX,
+        startY: e.clientY,
+        layerX: layer.x,
+        layerY: layer.y
+      };
+    }
+
+    function handlePreviewMouseMove(e) {
+      if (state.dragState) {
+        const dx = e.clientX - state.dragState.startX;
+        const dy = e.clientY - state.dragState.startY;
+
+        const layer = state.layers.find(l => l.id === state.dragState.layerId);
+        if (layer) {
+          // Snap to character grid
+          const newX = state.dragState.layerX + dx;
+          const newY = state.dragState.layerY + dy;
+          layer.x = Math.round(newX / CHAR_WIDTH) * CHAR_WIDTH;
+          layer.y = Math.round(newY / CHAR_HEIGHT) * CHAR_HEIGHT;
+          renderPreview();
+        }
+      }
+    }
+
+    function handlePreviewMouseUp(e) {
+      state.dragState = null;
+    }
+
+    // ============================================================
+    // EXPORT FUNCTIONS
+    // ============================================================
+
+    function flattenLayers() {
+      if (state.layers.length === 0) return [];
+
+      // Use user-defined canvas dimensions
+      const width = state.canvasWidth;
+      const height = state.canvasHeight;
+
+      // Create background grid (handles solid, gradient, and transparent)
+      const grid = generateBackgroundGrid(width, height);
+
+      // Composite layers with cropping
+      state.layers.forEach(layer => {
+        const charX = Math.round(layer.x / CHAR_WIDTH);
+        const charY = Math.round(layer.y / CHAR_HEIGHT);
+
+        layer.ansiData.forEach((row, ly) => {
+          row.forEach((cell, lx) => {
+            const targetY = charY + ly;
+            const targetX = charX + lx;
+
+            // Only composite if within canvas bounds
+            if (targetY >= 0 && targetY < height && targetX >= 0 && targetX < width) {
+              if (cell.fg !== TRANSPARENT_COLOR || cell.bg !== TRANSPARENT_COLOR) {
+                const existingCell = grid[targetY][targetX];
+                grid[targetY][targetX] = {
+                  char: cell.char !== ' ' ? cell.char : existingCell.char,
+                  fg: cell.fg !== TRANSPARENT_COLOR ? cell.fg : existingCell.fg,
+                  bg: cell.bg !== TRANSPARENT_COLOR ? cell.bg : existingCell.bg
+                };
+              }
+            }
+          });
+        });
+      });
+
+      return grid;
+    }
+
+    function copyToClipboard() {
+      const grid = flattenLayers();
+      let text = '';
+      grid.forEach(row => {
+        row.forEach(cell => {
+          text += cell.char;
+        });
+        text += '\n';
+      });
+
+      navigator.clipboard.writeText(text).then(() => {
+        alert('ANSI art copied to clipboard!');
+      }).catch(err => {
+        console.error('Failed to copy:', err);
+        alert('Failed to copy to clipboard');
+      });
+    }
+
+    function exportANS() {
+      const grid = flattenLayers();
+      let text = '';
+      grid.forEach(row => {
+        row.forEach(cell => {
+          text += cell.char;
+        });
+        text += '\n';
+      });
+
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ansitti-export.ans';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportPNG() {
+      const grid = flattenLayers();
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      canvas.width = grid[0].length * CHAR_WIDTH;
+      canvas.height = grid.length * CHAR_HEIGHT;
+
+      if (state.canvasBgType !== 'transparent') {
+        ctx.fillStyle = ANSI_COLORS[state.canvasBgColor];
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      ctx.font = '14px Courier New';
+
+      grid.forEach((row, y) => {
+        row.forEach((cell, x) => {
+          if (cell.bg !== TRANSPARENT_COLOR) {
+            ctx.fillStyle = ANSI_COLORS[cell.bg];
+            ctx.fillRect(x * CHAR_WIDTH, y * CHAR_HEIGHT, CHAR_WIDTH, CHAR_HEIGHT);
+          }
+          if (cell.fg !== TRANSPARENT_COLOR) {
+            ctx.fillStyle = ANSI_COLORS[cell.fg];
+            ctx.fillText(cell.char, x * CHAR_WIDTH, (y + 1) * CHAR_HEIGHT - 2);
+          }
+        });
+      });
+
+      canvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'ansitti-export.png';
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+    }
+
+    function copyWithColors() {
+      const grid = flattenLayers();
+      const text = gridToANSIEscapeCodes(grid);
+
+      navigator.clipboard.writeText(text).then(() => {
+        alert('ANSI art with color codes copied to clipboard!\nPaste into a terminal that supports ANSI colors.');
+      }).catch(err => {
+        console.error('Failed to copy:', err);
+        alert('Failed to copy to clipboard');
+      });
+    }
+
+    function exportANSI() {
+      const grid = flattenLayers();
+      const text = gridToANSIEscapeCodes(grid);
+
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ansitti-colored.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function gridToANSIEscapeCodes(grid) {
+      // Generate text with ANSI escape codes for colors
+      let text = '';
+      let lastFg = -1;
+      let lastBg = -1;
+
+      grid.forEach(row => {
+        row.forEach(cell => {
+          // Only emit escape codes when colors change (optimization)
+          if (cell.fg !== lastFg || cell.bg !== lastBg) {
+            // Reset first
+            text += '\x1b[0m';
+
+            // Set foreground color (30-37 for normal, 90-97 for bright)
+            if (cell.fg !== TRANSPARENT_COLOR) {
+              if (cell.fg < 8) {
+                text += `\x1b[${30 + cell.fg}m`;
+              } else {
+                text += `\x1b[${90 + (cell.fg - 8)}m`;
+              }
+            }
+
+            // Set background color (40-47 for normal, 100-107 for bright)
+            if (cell.bg !== TRANSPARENT_COLOR) {
+              if (cell.bg < 8) {
+                text += `\x1b[${40 + cell.bg}m`;
+              } else {
+                text += `\x1b[${100 + (cell.bg - 8)}m`;
+              }
+            }
+
+            lastFg = cell.fg;
+            lastBg = cell.bg;
+          }
+
+          text += cell.char;
+        });
+        text += '\x1b[0m\n'; // Reset at end of line
+        lastFg = -1;
+        lastBg = -1;
+      });
+
+      return text;
+    }
+
+    // ============================================================
+    // LICENSE MODAL
+    // ============================================================
+
+    function openLicenseModal() {
+      document.getElementById('licenseModal').style.display = 'block';
+      document.getElementById('licenseOverlay').style.display = 'block';
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeLicenseModal() {
+      document.getElementById('licenseModal').style.display = 'none';
+      document.getElementById('licenseOverlay').style.display = 'none';
+      document.body.style.overflow = '';
+    }
+
+    // ============================================================
+    // START
+    // ============================================================
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
