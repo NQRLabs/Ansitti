@@ -46,6 +46,9 @@
   <!-- Canonical URL -->
   <link rel="canonical" href="https://nqrlabs.com/Ansitti/">
 
+  <!-- DOS/VGA fonts for authentic CP437 rendering via jsDelivr CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dosfont@1.0.1/dos.css">
+
   <!-- Favicons -->
   <link rel="icon" type="image/png" sizes="32x32" href="assets/images/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="assets/images/favicon-16x16.png">
@@ -57,23 +60,80 @@
   <style>
     /* ANSI-specific styles */
     #ansiPreview {
-      font-family: 'Courier New', monospace;
+      /* Use authentic DOS VGA font for pixel-perfect CP437 rendering */
+      font-family: 'DOS', 'Consolas', monospace;
       line-height: 1;
       white-space: pre;
       background: #000;
-      padding: 20px;
+      padding: 0;
       cursor: crosshair;
       position: relative;
       user-select: none;
       width: 100%;
-      min-height: 100%;
+      height: 100%;
       box-sizing: border-box;
+      /* Allow the terminal to control scrolling; avoid double scrollbars */
+      /* Disable font smoothing for crisp bitmap font rendering */
+      -webkit-font-smoothing: none;
+      -moz-osx-font-smoothing: unset;
+      font-smooth: never;
+      text-rendering: optimizeSpeed;
+    }
+
+    /* Ensure the terminal fills the available preview area without overflowing.
+       Use flex layout so the terminal's internal DOM can size itself correctly
+       while staying within the container (avoids off-by-a-few-pixels overflows). */
+/*    #ansiPreview {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+      min-height: 0;
+    } */
+
+    /* Let immediate children flex to available height rather than forcing exact pixel heights.
+       This is less fragile than forcing 100% height and avoids small overflow differences
+       from terminal internals. */
+    #ansiPreview > * {
+      flex: 1 1 auto !important;
+      min-height: 0 !important;
+      box-sizing: border-box !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      max-height: none !important;
+    }
+
+    /* Darker dropdowns for contrast against light text */
+    select, select option {
+      background: #071018;
+      color: var(--color-text);
     }
 
     .ansi-char {
       display: inline-block;
       width: 1ch;
       height: 1em;
+    }
+
+    /* Blink animation for ANSI characters */
+    .ansi-blink {
+      animation: ansi-blink-animation 1s step-end infinite;
+    }
+
+    @keyframes ansi-blink-animation {
+      0%, 50% {
+        opacity: 1;
+      }
+      50.01%, 100% {
+        opacity: 0;
+      }
+    }
+
+    /* Respect user's motion preferences */
+    @media (prefers-reduced-motion: reduce) {
+      .ansi-blink {
+        animation: none;
+        opacity: 1;
+      }
     }
 
     .layer-item {
@@ -191,7 +251,8 @@
 
     .preview-content {
       flex: 1;
-      overflow: auto;
+      /* Let the terminal control scrolling to avoid a double scrollbar */
+      overflow: hidden;
       background: #000;
       position: relative;
       min-height: 0;
@@ -209,8 +270,9 @@
     }
 
     #charModeGroup button.active {
-      background: var(--color-primary);
-      color: #000;
+      background: rgba(255,255,255,0.04);
+      color: var(--color-primary);
+      border-color: var(--color-primary);
     }
 
     .font-style-group {
@@ -287,9 +349,9 @@
         <div class="section-title">Character Mode</div>
 
         <div id="charModeGroup">
-          <button id="blockModeBtn" class="active">Block</button>
+          <button id="blockModeBtn">Block</button>
           <button id="asciiModeBtn">ASCII</button>
-          <button id="halfBlockModeBtn">Half-Block</button>
+          <button id="halfBlockModeBtn" class="active">Half-Block</button>
         </div>
 
         <div class="info-hint">Block mode uses shading characters (░▒▓█). ASCII mode uses standard characters (.:-+=*#%@). Half-Block mode uses ▀▄ for 2x vertical resolution.</div>
@@ -299,19 +361,35 @@
       <div class="section">
         <div class="section-title">Layer Settings</div>
 
+          <div class="control-group">
+            <label class="control-label">X Position (chars)</label>
+            <div class="range-container">
+              <input type="range" id="layerX" min="-200" max="200" value="0">
+              <span class="range-value" id="layerXValue">0</span>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label">Y Position (chars)</label>
+            <div class="range-container">
+              <input type="range" id="layerY" min="-200" max="200" value="0">
+              <span class="range-value" id="layerYValue">0</span>
+            </div>
+          </div>
+
         <div class="control-group">
           <label class="control-label">Width (characters)</label>
           <div class="range-container">
-            <input type="range" id="layerWidth" min="10" max="200" value="80">
-            <span class="range-value" id="layerWidthValue">80</span>
+            <input type="range" id="layerWidth" min="10" max="200" value="100">
+            <span class="range-value" id="layerWidthValue">100</span>
           </div>
         </div>
 
         <div class="control-group">
           <label class="control-label">Height (characters)</label>
           <div class="range-container">
-            <input type="range" id="layerHeight" min="10" max="100" value="40">
-            <span class="range-value" id="layerHeightValue">40</span>
+            <input type="range" id="layerHeight" min="10" max="100" value="20">
+            <span class="range-value" id="layerHeightValue">20</span>
           </div>
         </div>
 
@@ -390,10 +468,10 @@
         </div>
 
         <div class="control-group text-only-control" id="fontSizeGroup">
-          <label class="control-label" data-default="24" ondblclick="resetToDefault(this, 'fontSize')">Font Size</label>
+          <label class="control-label" data-default="72" ondblclick="resetToDefault(this, 'fontSize')">Font Size</label>
           <div class="range-container">
-            <input type="range" id="fontSize" min="8" max="140" value="24">
-            <span class="range-value" id="fontSizeValue">24</span>
+            <input type="range" id="fontSize" min="8" max="140" value="72">
+            <span class="range-value" id="fontSizeValue">72</span>
           </div>
         </div>
 
@@ -557,7 +635,7 @@
         <button id="zoomOut">Zoom -</button>
         <button id="zoomReset">Reset Zoom</button>
         <span style="margin-left: auto; color: var(--color-text-secondary);">
-          Click and drag to move layers | Adjust size with Width/Height sliders
+          Use X/Y sliders to move layers | Adjust size with Width/Height sliders
         </span>
       </div>
       <div class="preview-content">
@@ -584,6 +662,10 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     </div>
   </div>
+
+  <!-- hterm library for professional ANSI/VT terminal rendering -->
+  <!-- Must load BEFORE main app script -->
+  <script src="vendor/hterm_all.js" onerror="console.error('Failed to load hterm_all.js from vendor/hterm_all.js')"></script>
 
   <script>
     // ============================================================
@@ -641,8 +723,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
       // Calculate max characters that fit in preview
       // Be conservative - use 80% of available space to ensure it fits
-      const maxPixelWidth = (previewRect.width * 0.8);
-      const maxPixelHeight = (previewRect.height * 0.8);
+      const maxPixelWidth = (previewRect.width * 1.00);
+      const maxPixelHeight = (previewRect.height * 1.00);
       const maxCharsWidth = Math.floor(maxPixelWidth / CHAR_WIDTH);
       const maxCharsHeight = Math.floor(maxPixelHeight / CHAR_HEIGHT);
 
@@ -650,6 +732,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       const width = Math.max(40, Math.min(200, maxCharsWidth));
       const height = Math.max(20, Math.min(100, maxCharsHeight));
 
+      console.log(`Optimal canvas size: ${width}x${height} chars`);
       return { width, height };
     }
 
@@ -687,15 +770,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     function init() {
       // Calculate optimal canvas size based on preview window
-      const optimalSize = calculateOptimalCanvasSize();
-      state.canvasWidth = optimalSize.width;
-      state.canvasHeight = optimalSize.height;
-
-      // Update UI controls to reflect calculated values
-      document.getElementById('canvasWidth').value = optimalSize.width;
-      document.getElementById('canvasWidthValue').textContent = optimalSize.width;
-      document.getElementById('canvasHeight').value = optimalSize.height;
-      document.getElementById('canvasHeightValue').textContent = optimalSize.height;
+//      const optimalSize = calculateOptimalCanvasSize();
+//      state.canvasWidth = optimalSize.width;
+//      state.canvasHeight = optimalSize.height;
+//      const optimalSize.width = { width:state.canvasWidth, height:state.canvasHeight};
+//
+//      // Update UI controls to reflect calculated values
+//      document.getElementById('canvasWidth').value = optimalSize.width;
+//      document.getElementById('canvasWidthValue').textContent = optimalSize.width;
+//      document.getElementById('canvasHeight').value = optimalSize.height;
+//      document.getElementById('canvasHeightValue').textContent = optimalSize.height;
 
       // Initialize color palettes with transparent option
       initColorPalette('fgColorPalette', 15, (colorIndex) => {
@@ -722,6 +806,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
       document.getElementById('addAnsiBtn').addEventListener('click', () => {
         document.getElementById('ansiUpload').click();
+      });
+      // Layer position sliders
+      document.getElementById('layerX').addEventListener('input', (e) => {
+        const val = parseInt(e.target.value, 10) || 0;
+        document.getElementById('layerXValue').textContent = val;
+        updateSelectedLayerPosition('x', val);
+      });
+      document.getElementById('layerY').addEventListener('input', (e) => {
+        const val = parseInt(e.target.value, 10) || 0;
+        document.getElementById('layerYValue').textContent = val;
+        updateSelectedLayerPosition('y', val);
       });
 
       document.getElementById('ansiUpload').addEventListener('change', handleAnsiUpload);
@@ -895,7 +990,57 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
       // Preview interactions
       const preview = document.getElementById('ansiPreview');
-      preview.addEventListener('mousedown', handlePreviewMouseDown);
+      // Use capture phase so clicks inside hterm's internal elements are caught
+      preview.addEventListener('mousedown', handlePreviewMouseDown, true);
+      // Also listen for pointerdown to support stylus/touch + better browser behavior
+      preview.addEventListener('pointerdown', handlePreviewMouseDown, true);
+
+      // Create an invisible overlay that covers the terminal interior.
+      // The overlay is normally pointer-events:none so it doesn't interfere
+      // with hterm's native selection. When the user holds Ctrl/Cmd the
+      // overlay is enabled (pointer-events:auto) so we can capture
+      // pointerdown inside the terminal and start layer dragging.
+      const overlay = document.createElement('div');
+      overlay.id = 'ansiPreviewOverlay';
+      overlay.style.position = 'absolute';
+      overlay.style.top = '0';
+      overlay.style.left = '0';
+      overlay.style.right = '0';
+      overlay.style.bottom = '0';
+      overlay.style.pointerEvents = 'none';
+      overlay.style.background = 'transparent';
+      overlay.style.cursor = 'grab';
+      overlay.style.zIndex = '999';
+      // Ensure container is positioned for absolute children
+      if (getComputedStyle(preview).position === 'static') preview.style.position = 'relative';
+      preview.appendChild(overlay);
+
+      // Forward pointerdown from overlay to existing handler
+      overlay.addEventListener('pointerdown', (e) => {
+        // Only handle when modifier is held (extra guard)
+        if (!e.altKey) return;
+        // Prevent hterm from receiving this pointer event
+        e.preventDefault();
+        // Call the same handler used for mousedown
+        handlePreviewMouseDown(e);
+      }, true);
+
+      // Toggle overlay activation on modifier keys
+      function enableOverlay() { overlay.style.pointerEvents = 'auto'; }
+      function disableOverlay() { overlay.style.pointerEvents = 'none'; overlay.style.cursor = 'grab'; }
+
+      window.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Alt') enableOverlay();
+      });
+      window.addEventListener('keyup', (ev) => {
+        if (ev.key === 'Alt') disableOverlay();
+      });
+      window.addEventListener('blur', disableOverlay);
+
+      // Update overlay cursor while dragging
+      document.addEventListener('pointerup', () => {
+        overlay.style.cursor = 'grab';
+      });
       document.addEventListener('mousemove', handlePreviewMouseMove);
       document.addEventListener('mouseup', handlePreviewMouseUp);
 
@@ -904,8 +1049,91 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       document.getElementById('licenseClose').addEventListener('click', closeLicenseModal);
       document.getElementById('licenseOverlay').addEventListener('click', closeLicenseModal);
 
-      updateControlsVisibility();
-      renderPreview();
+      // Initialize hterm for ANSI rendering
+      initHterm();
+    }
+
+    // ============================================================
+    // HTERM INITIALIZATION
+    // ============================================================
+
+    let htermInstance = null;
+    let htermIO = null;
+    let htermReady = false;
+    let pendingRender = false;
+
+    function initHterm(tries = 0) {
+      // Wait for hterm to load (with UMD compatibility)
+      if (!window.hterm && window.returnExports && window.returnExports.hterm) {
+        window.hterm = window.returnExports.hterm;
+        window.lib = window.returnExports.lib;
+      }
+
+      if (!window.hterm || !window.lib) {
+        if (tries < 50) {
+          setTimeout(() => initHterm(tries + 1), 100);
+        } else {
+          console.error('hterm failed to load after 5 seconds - ANSI preview unavailable');
+          document.getElementById('ansiPreview').innerHTML = '<div style="color:#ff4444;padding:20px;">Error: Terminal library failed to load. Please refresh the page.</div>';
+        }
+        return;
+      }
+
+      // Initialize hterm storage
+      hterm.defaultStorage = new lib.Storage.Memory();
+
+      // Create terminal instance
+      htermInstance = new hterm.Terminal();
+      const previewContainer = document.getElementById('ansiPreview');
+      previewContainer.innerHTML = ''; // Clear existing content
+
+      htermInstance.decorate(previewContainer);
+
+      htermInstance.onTerminalReady = () => {
+        // Configure terminal for ANSI art display
+        htermInstance.prefs_.set('cursor-blink', false);
+        htermInstance.prefs_.set('font-family', '"DOS", "Cascadia Mono", "Consolas", monospace');
+        htermInstance.prefs_.set('font-size', 14);
+        htermInstance.prefs_.set('font-smoothing', 'antialiased');
+        htermInstance.prefs_.set('background-color', '#000000');
+        htermInstance.prefs_.set('foreground-color', '#ffffff');
+        htermInstance.prefs_.set('scrollbar-visible', true);
+        htermInstance.prefs_.set('user-css', 'data:text/css,.blink{animation:blink 1s steps(1,start) infinite}@keyframes blink{0%{opacity:1}50%{opacity:0}100%{opacity:1}}');
+
+        // Set terminal size to match canvas
+//        htermInstance.setWidth(state.canvasWidth);
+//        htermInstance.setHeight(state.canvasHeight);
+
+        // Hide cursor
+        htermInstance.setCursorVisible(false);
+
+        htermIO = htermInstance.io.push();
+        htermIO.onVTKeystroke = () => {}; // Disable keyboard input
+        htermIO.sendString = () => {};
+
+        htermReady = true;
+
+        updateControlsVisibility();
+
+        // Process any pending render requests
+        if (pendingRender) {
+          pendingRender = false;
+          renderPreview();
+        } else {
+          renderPreview();
+        }
+
+        state.canvasWidth = htermInstance.screenSize.width;
+        state.canvasHeight = htermInstance.screenSize.height;
+        console.log(`Setting terminal size to ${state.canvasWidth}x${state.canvasHeight}`);
+
+        // Update UI controls to reflect calculated values
+        document.getElementById('canvasWidth').value = state.canvasWidth;
+        document.getElementById('canvasWidthValue').textContent = state.canvasWidth;
+        document.getElementById('canvasHeight').value = state.canvasHeight;
+        document.getElementById('canvasHeightValue').textContent = state.canvasHeight;
+
+      };
     }
 
     // ============================================================
@@ -985,6 +1213,18 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       }
 
       regenerateLayerANSI(layer);
+      renderPreview();
+    }
+
+    function updateSelectedLayerPosition(axis, charValue) {
+      const layer = getSelectedLayer();
+      if (!layer) return;
+      // charValue is in character units; convert to pixels
+      if (axis === 'x') {
+        layer.x = Math.round(charValue * CHAR_WIDTH);
+      } else if (axis === 'y') {
+        layer.y = Math.round(charValue * CHAR_HEIGHT);
+      }
       renderPreview();
     }
 
@@ -1531,7 +1771,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             }
 
             if (allTransparent) {
-              row.push({ char: ' ', fg: TRANSPARENT_COLOR, bg: TRANSPARENT_COLOR });
+              row.push({ char: ' ', fg: TRANSPARENT_COLOR, bg: TRANSPARENT_COLOR, blink: false });
               continue;
             }
 
@@ -1629,7 +1869,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
           // If entire block is transparent, use transparent character
           if (allTransparent) {
-            row.push({ char: ' ', fg: TRANSPARENT_COLOR, bg: TRANSPARENT_COLOR });
+            row.push({ char: ' ', fg: TRANSPARENT_COLOR, bg: TRANSPARENT_COLOR, blink: false });
             continue;
           }
 
@@ -1715,7 +1955,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
           // Handle transparency
           if (topA < 128 && bottomA < 128) {
-            row.push({ char: ' ', fg: TRANSPARENT_COLOR, bg: TRANSPARENT_COLOR });
+            row.push({ char: ' ', fg: TRANSPARENT_COLOR, bg: TRANSPARENT_COLOR, blink: false });
             continue;
           }
 
@@ -1781,7 +2021,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
           // Handle transparency
           if (topA < 128 && bottomA < 128) {
-            row.push({ char: ' ', fg: TRANSPARENT_COLOR, bg: TRANSPARENT_COLOR });
+            row.push({ char: ' ', fg: TRANSPARENT_COLOR, bg: TRANSPARENT_COLOR, blink: false });
             continue;
           }
 
@@ -2031,13 +2271,71 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     // ANSI FILE LOADING
     // ============================================================
 
+    // CP437 (DOS) to Unicode mapping table for ANS file decoding
+    // This is essential for properly displaying BBS ANSI art
+    const CP437_TO_UNICODE = [
+      // 0x00-0x1F (control chars + special graphics)
+      '\u0000', '\u263A', '\u263B', '\u2665', '\u2666', '\u2663', '\u2660', '\u2022',
+      '\u25D8', '\u25CB', '\u25D9', '\u2642', '\u2640', '\u266A', '\u266B', '\u263C',
+      '\u25BA', '\u25C4', '\u2195', '\u203C', '\u00B6', '\u00A7', '\u25AC', '\u21A8',
+      '\u2191', '\u2193', '\u2192', '\u001B', '\u221F', '\u2194', '\u25B2', '\u25BC',
+      // 0x20-0x7E (standard ASCII)
+      ' ', '!', '"', '#', '$', '%', '&', "'", '(', ')', '*', '+', ',', '-', '.', '/',
+      '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', '<', '=', '>', '?',
+      '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
+      'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '[', '\\', ']', '^', '_',
+      '`', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
+      'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '{', '|', '}', '~', '\u2302',
+      // 0x80-0xFF (extended ASCII / box drawing / blocks)
+      '\u00C7', '\u00FC', '\u00E9', '\u00E2', '\u00E4', '\u00E0', '\u00E5', '\u00E7',
+      '\u00EA', '\u00EB', '\u00E8', '\u00EF', '\u00EE', '\u00EC', '\u00C4', '\u00C5',
+      '\u00C9', '\u00E6', '\u00C6', '\u00F4', '\u00F6', '\u00F2', '\u00FB', '\u00F9',
+      '\u00FF', '\u00D6', '\u00DC', '\u00A2', '\u00A3', '\u00A5', '\u20A7', '\u0192',
+      '\u00E1', '\u00ED', '\u00F3', '\u00FA', '\u00F1', '\u00D1', '\u00AA', '\u00BA',
+      '\u00BF', '\u2310', '\u00AC', '\u00BD', '\u00BC', '\u00A1', '\u00AB', '\u00BB',
+      '\u2591', '\u2592', '\u2593', '\u2502', '\u2524', '\u2561', '\u2562', '\u2556',
+      '\u2555', '\u2563', '\u2551', '\u2557', '\u255D', '\u255C', '\u255B', '\u2510',
+      '\u2514', '\u2534', '\u252C', '\u251C', '\u2500', '\u253C', '\u255E', '\u255F',
+      '\u255A', '\u2554', '\u2569', '\u2566', '\u2560', '\u2550', '\u256C', '\u2567',
+      '\u2568', '\u2564', '\u2565', '\u2559', '\u2558', '\u2552', '\u2553', '\u256B',
+      '\u256A', '\u2518', '\u250C', '\u2588', '\u2584', '\u258C', '\u2590', '\u2580',
+      '\u03B1', '\u00DF', '\u0393', '\u03C0', '\u03A3', '\u03C3', '\u00B5', '\u03C4',
+      '\u03A6', '\u0398', '\u03A9', '\u03B4', '\u221E', '\u03C6', '\u03B5', '\u2229',
+      '\u2261', '\u00B1', '\u2265', '\u2264', '\u2320', '\u2321', '\u00F7', '\u2248',
+      '\u00B0', '\u2219', '\u00B7', '\u221A', '\u207F', '\u00B2', '\u25A0', '\u00A0'
+    ];
+
+    /**
+     * Decode CP437 (DOS) encoded binary data to Unicode string
+     * This is essential for properly reading BBS ANSI art files
+     */
+    function decodeCP437(arrayBuffer) {
+      const bytes = new Uint8Array(arrayBuffer);
+      let result = '';
+      for (let i = 0; i < bytes.length; i++) {
+        const b = bytes[i];
+        // Preserve ASCII control semantics for parsing: CR, LF and ESC
+        if (b === 0x0A) { // LF
+          result += '\n';
+        } else if (b === 0x0D) { // CR
+          result += '\r';
+        } else if (b === 0x1B) { // ESC
+          result += '\x1b';
+        } else {
+          result += CP437_TO_UNICODE[b];
+        }
+      }
+      return result;
+    }
+
     function handleAnsiUpload(e) {
       const file = e.target.files[0];
       if (!file) return;
 
       const reader = new FileReader();
       reader.onload = (event) => {
-        const content = event.target.result;
+        // Decode from CP437 (DOS encoding) to Unicode
+        const content = decodeCP437(event.target.result);
 
         // Try to detect row width from content
         let detectedWidth = 80; // Default
@@ -2071,17 +2369,34 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
         addLayer('ansi', ansiData, ansiData[0]?.length || detectedWidth, ansiData.length, charMode, null, content, detectedWidth);
       };
-      reader.readAsText(file);
+      // Read as binary ArrayBuffer to properly handle CP437 encoding
+      reader.readAsArrayBuffer(file);
 
       e.target.value = '';
     }
 
     function parseAnsiFile(content, rowWidth) {
-      const ansiData = [];
-      let currentRow = [];
+      // Initialize a 2D grid buffer for cursor-based positioning
+      const grid = [];
+      const maxRows = 100; // Start with reasonable buffer, will expand as needed
+
+      // Initialize grid with empty cells
+      for (let y = 0; y < maxRows; y++) {
+        grid[y] = [];
+        for (let x = 0; x < rowWidth; x++) {
+          grid[y][x] = { char: ' ', fg: 7, bg: 0, blink: false };
+        }
+      }
+
+      let cursorX = 0;
+      let cursorY = 0;
+      let savedX = 0;
+      let savedY = 0;
       let currentFg = 7; // Default white
       let currentBg = 0; // Default black
-      let x = 0;
+      let isBold = false;
+      let isBlink = false;
+      let maxRowUsed = 0;
 
       // Parse character by character
       let i = 0;
@@ -2096,77 +2411,218 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
           const escapeCode = content.substring(i + 2, j);
           const command = content[j];
 
-          // Parse color codes
+          // Parse SGR (Select Graphic Rendition) - color and style codes
           if (command === 'm') {
             const codes = escapeCode.split(';').map(c => parseInt(c) || 0);
-            codes.forEach(code => {
-              if (code === 0) {
-                // Reset
-                currentFg = 7;
-                currentBg = 0;
-              } else if (code >= 30 && code <= 37) {
-                // Foreground color
-                currentFg = code - 30;
-              } else if (code >= 40 && code <= 47) {
-                // Background color
-                currentBg = code - 40;
-              } else if (code >= 90 && code <= 97) {
-                // Bright foreground color
-                currentFg = code - 90 + 8;
-              } else if (code >= 100 && code <= 107) {
-                // Bright background color
-                currentBg = code - 100 + 8;
+            // Handle empty escape code as reset
+            if (codes.length === 0 || (codes.length === 1 && codes[0] === 0)) {
+              currentFg = 7;
+              currentBg = 0;
+              isBold = false;
+              isBlink = false;
+            } else {
+              codes.forEach(code => {
+                if (code === 0) {
+                  // Reset all attributes
+                  currentFg = 7;
+                  currentBg = 0;
+                  isBold = false;
+                  isBlink = false;
+                } else if (code === 1) {
+                  // Bold/bright
+                  isBold = true;
+                } else if (code === 22) {
+                  // Normal intensity (not bold)
+                  isBold = false;
+                } else if (code === 5 || code === 6) {
+                  // Blink (5 = slow blink, 6 = rapid blink - we treat both as blink)
+                  isBlink = true;
+                } else if (code === 25) {
+                  // Blink off
+                  isBlink = false;
+                } else if (code >= 30 && code <= 37) {
+                  // Foreground color
+                  currentFg = code - 30;
+                  if (isBold) currentFg += 8; // Bright version
+                } else if (code >= 40 && code <= 47) {
+                  // Background color
+                  currentBg = code - 40;
+                } else if (code >= 90 && code <= 97) {
+                  // Bright foreground color
+                  currentFg = code - 90 + 8;
+                } else if (code >= 100 && code <= 107) {
+                  // Bright background color
+                  currentBg = code - 100 + 8;
+                }
+              });
+            }
+          }
+          // Cursor positioning
+          else if (command === 'H' || command === 'f') {
+            // Move cursor to position (row;col) or (row) or default (1;1)
+            const parts = escapeCode.split(';');
+            const row = parseInt(parts[0]) || 1;
+            const col = parseInt(parts[1]) || 1;
+            cursorY = row - 1; // Convert to 0-indexed
+            cursorX = col - 1;
+
+            // Expand grid if needed
+            while (cursorY >= grid.length) {
+              const newRow = [];
+              for (let x = 0; x < rowWidth; x++) {
+                newRow.push({ char: ' ', fg: 7, bg: 0, blink: false });
               }
-            });
+              grid.push(newRow);
+            }
+          }
+          // Cursor up
+          else if (command === 'A') {
+            const n = parseInt(escapeCode) || 1;
+            cursorY = Math.max(0, cursorY - n);
+          }
+          // Cursor down
+          else if (command === 'B') {
+            const n = parseInt(escapeCode) || 1;
+            cursorY += n;
+            // Expand grid if needed
+            while (cursorY >= grid.length) {
+              const newRow = [];
+              for (let x = 0; x < rowWidth; x++) {
+                newRow.push({ char: ' ', fg: 7, bg: 0, blink: false });
+              }
+              grid.push(newRow);
+            }
+          }
+          // Cursor forward
+          else if (command === 'C') {
+            const n = parseInt(escapeCode) || 1;
+            cursorX = Math.min(rowWidth - 1, cursorX + n);
+          }
+          // Cursor backward
+          else if (command === 'D') {
+            const n = parseInt(escapeCode) || 1;
+            cursorX = Math.max(0, cursorX - n);
+          }
+          // Save cursor position
+          else if (command === 's') {
+            savedX = cursorX;
+            savedY = cursorY;
+          }
+          // Restore cursor position
+          else if (command === 'u') {
+            cursorX = savedX;
+            cursorY = savedY;
+          }
+          // Erase display
+          else if (command === 'J') {
+            const mode = parseInt(escapeCode) || 0;
+            if (mode === 2) {
+              // Clear entire screen
+              for (let y = 0; y < grid.length; y++) {
+                for (let x = 0; x < rowWidth; x++) {
+                  grid[y][x] = { char: ' ', fg: 7, bg: 0, blink: false };
+                }
+              }
+              cursorX = 0;
+              cursorY = 0;
+            }
+          }
+          // Erase line
+          else if (command === 'K') {
+            const mode = parseInt(escapeCode) || 0;
+            if (mode === 0) {
+              // Clear from cursor to end of line
+              for (let x = cursorX; x < rowWidth; x++) {
+                grid[cursorY][x] = { char: ' ', fg: currentFg, bg: currentBg, blink: isBlink };
+              }
+            } else if (mode === 1) {
+              // Clear from start of line to cursor
+              for (let x = 0; x <= cursorX; x++) {
+                grid[cursorY][x] = { char: ' ', fg: currentFg, bg: currentBg, blink: isBlink };
+              }
+            } else if (mode === 2) {
+              // Clear entire line
+              for (let x = 0; x < rowWidth; x++) {
+                grid[cursorY][x] = { char: ' ', fg: currentFg, bg: currentBg, blink: isBlink };
+              }
+            }
           }
 
           i = j + 1;
           continue;
         }
 
-        // Check for newline
-        if (content[i] === '\n' || content[i] === '\r') {
-          // Pad row to rowWidth with spaces
-          while (currentRow.length < rowWidth) {
-            currentRow.push({ char: ' ', fg: currentBg, bg: currentBg });
+        // Check for newline/carriage return
+        if (content[i] === '\n') {
+          cursorY++;
+          cursorX = 0;
+          // Expand grid if needed
+          while (cursorY >= grid.length) {
+            const newRow = [];
+            for (let x = 0; x < rowWidth; x++) {
+              newRow.push({ char: ' ', fg: 7, bg: 0, blink: false });
+            }
+            grid.push(newRow);
           }
-          ansiData.push(currentRow);
-          currentRow = [];
-          x = 0;
           i++;
-          if (content[i] === '\n' && content[i - 1] === '\r') i++; // Skip \r\n
+          continue;
+        }
+        if (content[i] === '\r') {
+          cursorX = 0;
+          i++;
           continue;
         }
 
-        // Regular character
-        const char = content[i];
-        currentRow.push({ char, fg: currentFg, bg: currentBg });
-        x++;
+        // Regular character - place at cursor position
+        if (cursorY >= grid.length) {
+          // Expand grid if needed
+          while (cursorY >= grid.length) {
+            const newRow = [];
+            for (let x = 0; x < rowWidth; x++) {
+              newRow.push({ char: ' ', fg: 7, bg: 0, blink: false });
+            }
+            grid.push(newRow);
+          }
+        }
 
+        if (cursorX < rowWidth) {
+          const char = content[i];
+          grid[cursorY][cursorX] = {
+            char,
+            fg: isBold && currentFg < 8 ? currentFg + 8 : currentFg,
+            bg: currentBg,
+            blink: isBlink
+          };
+          maxRowUsed = Math.max(maxRowUsed, cursorY);
+        }
+
+        cursorX++;
         // Auto-wrap at rowWidth
-        if (x >= rowWidth) {
-          ansiData.push(currentRow);
-          currentRow = [];
-          x = 0;
+        if (cursorX >= rowWidth) {
+          cursorX = 0;
+          cursorY++;
+          // Expand grid if needed
+          while (cursorY >= grid.length) {
+            const newRow = [];
+            for (let x = 0; x < rowWidth; x++) {
+              newRow.push({ char: ' ', fg: 7, bg: 0, blink: false });
+            }
+            grid.push(newRow);
+          }
         }
 
         i++;
       }
 
-      // Add final row if not empty
-      if (currentRow.length > 0) {
-        while (currentRow.length < rowWidth) {
-          currentRow.push({ char: ' ', fg: currentBg, bg: currentBg });
-        }
-        ansiData.push(currentRow);
-      }
+      // Trim grid to only used rows (plus a small buffer)
+      const trimmedGrid = grid.slice(0, maxRowUsed + 2);
 
       // Ensure at least one row
-      if (ansiData.length === 0) {
-        ansiData.push([{ char: ' ', fg: 7, bg: 0 }]);
+      if (trimmedGrid.length === 0) {
+        trimmedGrid.push([{ char: ' ', fg: 7, bg: 0, blink: false }]);
       }
 
-      return ansiData;
+      return trimmedGrid;
     }
 
     function updateSelectedLayerAnsiRowWidth(width) {
@@ -2184,6 +2640,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       document.getElementById('layerWidthValue').textContent = layer.width;
       document.getElementById('layerHeight').value = layer.height;
       document.getElementById('layerHeightValue').textContent = layer.height;
+      // Position sliders in character units
+      const xChars = Math.round((layer.x || 0) / CHAR_WIDTH);
+      const yChars = Math.round((layer.y || 0) / CHAR_HEIGHT);
+      const maxX = Math.max(0, state.canvasWidth);
+      const maxY = Math.max(0, state.canvasHeight);
+      const minX = -Math.max(200, layer.width || 0);
+      const minY = -Math.max(200, layer.height || 0);
+      const layerXInput = document.getElementById('layerX');
+      const layerYInput = document.getElementById('layerY');
+      layerXInput.min = minX; layerXInput.max = maxX; layerXInput.value = xChars; document.getElementById('layerXValue').textContent = xChars;
+      layerYInput.min = minY; layerYInput.max = maxY; layerYInput.value = yChars; document.getElementById('layerYValue').textContent = yChars;
 
       renderPreview();
     }
@@ -2273,8 +2740,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       // Calculate character dimensions from canvas
       // Half-block mode doubles vertical resolution
       const charHeightPixels = (charMode === 'halfblock') ? CHAR_HEIGHT * 2 : CHAR_HEIGHT;
-      const width = Math.ceil(textCanvas.width / CHAR_WIDTH);
-      const height = Math.ceil(textCanvas.height / charHeightPixels);
+      let width = Math.ceil(textCanvas.width / CHAR_WIDTH);
+      let height = Math.ceil(textCanvas.height / charHeightPixels);
+
+      // If using placeholder/default sample text, prefer fixed sensible defaults
+      if (text === 'Sample Text' || !text.trim()) {
+        width = 100;
+        height = 20;
+      }
 
       // Update UI to reflect calculated dimensions
       document.getElementById('layerWidth').value = width;
@@ -2632,9 +3105,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     // ============================================================
 
     function renderPreview() {
-      const preview = document.getElementById('ansiPreview');
-      preview.innerHTML = '';
-      preview.style.background = '#000'; // Always black background for ANSI preview
+      // Queue render if hterm isn't ready yet
+      if (!htermReady || !htermIO || !htermInstance) {
+        pendingRender = true;
+        return;
+      }
 
       // Create canvas-sized grid
       const width = state.canvasWidth;
@@ -2648,7 +3123,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       for (let y = 0; y < height; y++) {
         const row = [];
         for (let x = 0; x < width; x++) {
-          row.push({ char: ' ', fg: TRANSPARENT_COLOR, bg: TRANSPARENT_COLOR });
+          row.push({ char: ' ', fg: TRANSPARENT_COLOR, bg: TRANSPARENT_COLOR, blink: false });
         }
         layerGrid.push(row);
       }
@@ -2671,7 +3146,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 layerGrid[targetY][targetX] = {
                   char: cell.char !== ' ' ? cell.char : existingCell.char,
                   fg: cell.fg !== TRANSPARENT_COLOR ? cell.fg : existingCell.fg,
-                  bg: cell.bg !== TRANSPARENT_COLOR ? cell.bg : existingCell.bg
+                  bg: cell.bg !== TRANSPARENT_COLOR ? cell.bg : existingCell.bg,
+                  blink: cell.blink || existingCell.blink  // Preserve blink from either layer
                 };
               }
             }
@@ -2679,8 +3155,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         });
       });
 
-      // Render combined grid
-      let html = '';
+      // Clear terminal and render with ANSI codes
+      htermInstance.wipeContents();
+      htermInstance.setCursorVisible(false);
+      htermInstance.setCursorPosition(0, 0);
+
+      // Generate ANSI escape codes from grid
+      let ansiOutput = '';
+      let lastFg = -1;
+      let lastBg = -1;
+      let lastBlink = false;
+
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
           const layerCell = layerGrid[y][x];
@@ -2690,15 +3175,47 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
           let char = layerCell.char !== ' ' ? layerCell.char : bgCell.char;
           let fg = layerCell.fg !== TRANSPARENT_COLOR ? layerCell.fg : bgCell.fg;
           let bg = layerCell.bg !== TRANSPARENT_COLOR ? layerCell.bg : bgCell.bg;
+          let blink = layerCell.blink || (bgCell.blink || false);
 
-          const fgColor = fg === TRANSPARENT_COLOR ? 'transparent' : ANSI_COLORS[fg];
-          const bgColor = bg === TRANSPARENT_COLOR ? 'transparent' : ANSI_COLORS[bg];
-          html += `<span style="color: ${fgColor}; background: ${bgColor};">${char}</span>`;
+          // Only emit escape codes when colors or blink changes
+          if (fg !== lastFg || bg !== lastBg || blink !== lastBlink) {
+            ansiOutput += '\x1b[0m'; // Reset
+
+            // Set blink if needed
+            if (blink) {
+              ansiOutput += '\x1b[5m';
+            }
+
+            // Set foreground color
+            if (fg !== TRANSPARENT_COLOR) {
+              if (fg < 8) {
+                ansiOutput += `\x1b[${30 + fg}m`;
+              } else {
+                ansiOutput += `\x1b[${90 + (fg - 8)}m`;
+              }
+            }
+
+            // Set background color
+            if (bg !== TRANSPARENT_COLOR) {
+              if (bg < 8) {
+                ansiOutput += `\x1b[${40 + bg}m`;
+              } else {
+                ansiOutput += `\x1b[${100 + (bg - 8)}m`;
+              }
+            }
+
+            lastFg = fg;
+            lastBg = bg;
+            lastBlink = blink;
+          }
+
+          ansiOutput += char;
         }
-        html += '\n';
+        ansiOutput += '\r\n';
       }
 
-      preview.innerHTML = html;
+      // Feed ANSI output to hterm
+      htermIO.print(ansiOutput);
     }
 
     function generateBackgroundGrid(width, height) {
@@ -2709,7 +3226,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         for (let y = 0; y < height; y++) {
           const row = [];
           for (let x = 0; x < width; x++) {
-            row.push({ char: ' ', fg: 7, bg: 0 });
+            row.push({ char: ' ', fg: 7, bg: 0, blink: false });
           }
           grid.push(row);
         }
@@ -2738,7 +3255,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             row.push({
               char,
               fg: useColor2 ? color1 : color2,
-              bg: color
+              bg: color,
+              blink: false
             });
           }
           grid.push(row);
@@ -2748,7 +3266,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         for (let y = 0; y < height; y++) {
           const row = [];
           for (let x = 0; x < width; x++) {
-            row.push({ char: ' ', fg: state.canvasBgColor, bg: state.canvasBgColor });
+            row.push({ char: ' ', fg: state.canvasBgColor, bg: state.canvasBgColor, blink: false });
           }
           grid.push(row);
         }
@@ -2768,10 +3286,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     // ============================================================
 
     function handlePreviewMouseDown(e) {
+      // Start dragging only when Alt (Option) is held so regular
+      // left-click+drag can still select text in the terminal.
       if (!state.selectedLayerId) return;
+      if (!e.altKey) return;
 
       const layer = state.layers.find(l => l.id === state.selectedLayerId);
       if (!layer) return;
+
+      // Prevent text selection while dragging
+      e.preventDefault();
 
       state.dragState = {
         layerId: layer.id,
@@ -2865,15 +3389,44 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     function exportANS() {
       const grid = flattenLayers();
-      let text = '';
-      grid.forEach(row => {
-        row.forEach(cell => {
-          text += cell.char;
-        });
-        text += '\n';
-      });
 
-      const blob = new Blob([text], { type: 'text/plain' });
+      // Helper: build reverse CP437 map on first use
+      if (typeof window.UNICODE_TO_CP437 === 'undefined') {
+        window.UNICODE_TO_CP437 = Object.create(null);
+        for (let i = 0; i < CP437_TO_UNICODE.length; i++) {
+          // Use the exact string as key; later lookups will be simple.
+          window.UNICODE_TO_CP437[CP437_TO_UNICODE[i]] = i;
+        }
+      }
+
+      function charToCp437(ch) {
+        // Direct mapping if present
+        const v = window.UNICODE_TO_CP437[ch];
+        if (typeof v === 'number') return v;
+        const code = ch.charCodeAt(0);
+        // If ASCII range, return code
+        if (code >= 0 && code < 128) return code;
+        // Fallback to '?' (0x3F) when character not representable
+        return 0x3F;
+      }
+
+      // Build a Uint8Array with CRLF line endings (0x0D 0x0A) per row.
+      const cols = grid[0]?.length || 0;
+      const rows = grid.length;
+      const outBytes = new Uint8Array(rows * (cols + 2)); // +2 for CRLF
+      let pos = 0;
+      for (let r = 0; r < rows; r++) {
+        const row = grid[r];
+        for (let c = 0; c < cols; c++) {
+          const ch = row[c]?.char || ' ';
+          outBytes[pos++] = charToCp437(ch);
+        }
+        // CRLF
+        outBytes[pos++] = 0x0D;
+        outBytes[pos++] = 0x0A;
+      }
+
+      const blob = new Blob([outBytes], { type: 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -2896,7 +3449,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      ctx.font = '14px Courier New';
+      // Use authentic DOS font for pixel-perfect CP437 rendering
+      ctx.font = '14px "DOS", "Consolas", monospace';
 
       grid.forEach((row, y) => {
         row.forEach((cell, x) => {
@@ -2925,23 +3479,84 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       const grid = flattenLayers();
       const text = gridToANSIEscapeCodes(grid);
 
-      navigator.clipboard.writeText(text).then(() => {
-        alert('ANSI art with color codes copied to clipboard!\nPaste into a terminal that supports ANSI colors.');
-      }).catch(err => {
-        console.error('Failed to copy:', err);
-        alert('Failed to copy to clipboard');
-      });
+      // Encode to CP437 bytes for legacy terminal compatibility
+      function encodeToCp437(str) {
+        const bytes = [];
+        for (let i = 0; i < str.length; i++) {
+          const ch = str[i];
+          const mapped = window.UNICODE_TO_CP437 && window.UNICODE_TO_CP437[ch];
+          if (typeof mapped === 'number') {
+            bytes.push(mapped);
+            continue;
+          }
+          const code = ch.charCodeAt(0);
+          if (code < 128) {
+            bytes.push(code);
+            continue;
+          }
+          // fallback to '?'
+          bytes.push(0x3F);
+        }
+        return new Uint8Array(bytes);
+      }
+
+      // Try to write binary CP437 bytes to clipboard (may not be supported everywhere)
+      const cp437Blob = new Blob([encodeToCp437(text)], { type: 'text/plain' });
+      if (navigator.clipboard && navigator.clipboard.write) {
+        const item = new ClipboardItem({ 'text/plain': cp437Blob });
+        navigator.clipboard.write([item]).then(() => {
+          alert('ANSI art with color codes copied to clipboard (CP437 bytes). Paste into hterm or compatible terminal.');
+        }).catch(err => {
+          // Fallback to plain text copy
+          navigator.clipboard.writeText(text).then(() => {
+            alert('ANSI art with color codes copied to clipboard!\nPaste into a terminal that supports ANSI colors.');
+          }).catch(e => {
+            console.error('Failed to copy:', e);
+            alert('Failed to copy to clipboard');
+          });
+        });
+      } else {
+        // Older browsers: fallback to text copy
+        navigator.clipboard.writeText(text).then(() => {
+          alert('ANSI art with color codes copied to clipboard!\nPaste into a terminal that supports ANSI colors.');
+        }).catch(err => {
+          console.error('Failed to copy:', err);
+          alert('Failed to copy to clipboard');
+        });
+      }
     }
 
     function exportANSI() {
       const grid = flattenLayers();
       const text = gridToANSIEscapeCodes(grid);
 
-      const blob = new Blob([text], { type: 'text/plain' });
+      // Encode ANSI text to CP437 bytes (preserve ESC sequences and ASCII)
+      function encodeToCp437(str) {
+        const bytes = [];
+        for (let i = 0; i < str.length; i++) {
+          const ch = str[i];
+          const mapped = window.UNICODE_TO_CP437 && window.UNICODE_TO_CP437[ch];
+          if (typeof mapped === 'number') {
+            bytes.push(mapped);
+            continue;
+          }
+          const code = ch.charCodeAt(0);
+          if (code < 128) {
+            bytes.push(code);
+            continue;
+          }
+          // fallback to '?'
+          bytes.push(0x3F);
+        }
+        return new Uint8Array(bytes);
+      }
+
+      const outBytes = encodeToCp437(text);
+      const blob = new Blob([outBytes], { type: 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'ansitti-colored.txt';
+      a.download = 'ansitti-colored.ans';
       a.click();
       URL.revokeObjectURL(url);
     }
